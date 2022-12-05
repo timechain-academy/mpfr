@@ -1,6 +1,6 @@
 /* Test file for gamma function
 
-Copyright 2001-2017 Free Software Foundation, Inc.
+Copyright 2001-2022 Free Software Foundation, Inc.
 Contributed by the AriC and Caramba projects, INRIA.
 
 This file is part of the GNU MPFR Library.
@@ -17,7 +17,7 @@ License for more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with the GNU MPFR Library; see the file COPYING.LESSER.  If not, see
-http://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
+https://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA. */
 
 #include "mpfr-test.h"
@@ -106,7 +106,7 @@ special (void)
   mpfr_set_str (x, CHECK_Y1, 10, MPFR_RNDN);
   if (mpfr_cmp (y, x))
     {
-      printf ("mpfr_lngamma("CHECK_X1") is wrong:\n"
+      printf ("mpfr_lngamma(" CHECK_X1 ") is wrong:\n"
               "expected ");
       mpfr_dump (x);
       printf ("got      ");
@@ -121,7 +121,7 @@ special (void)
   mpfr_set_str (x, CHECK_Y2, 10, MPFR_RNDN);
   if (mpfr_cmp (y, x))
     {
-      printf ("mpfr_lngamma("CHECK_X2") is wrong:\n"
+      printf ("mpfr_lngamma(" CHECK_X2 ") is wrong:\n"
               "expected ");
       mpfr_dump (x);
       printf ("got      ");
@@ -326,11 +326,11 @@ special_overflow (void)
   mpfr_set_prec (y, 38);
   mpfr_set_str (x, "-2993155353253689176481146537402947624254601559176535", 10,
                 MPFR_RNDN);
-  mpfr_div_2exp (x, x, 170, MPFR_RNDN);
+  mpfr_div_2ui (x, x, 170, MPFR_RNDN);
   mpfr_gamma (y, x, MPFR_RNDN);
   mpfr_set_prec (x, 38);
   mpfr_set_str (x, "201948391737", 10, MPFR_RNDN);
-  mpfr_mul_2exp (x, x, 92, MPFR_RNDN);
+  mpfr_mul_2ui (x, x, 92, MPFR_RNDN);
   if (mpfr_cmp (x, y))
     {
       printf ("Error for gamma (test 5)\n");
@@ -586,9 +586,9 @@ exprange (void)
       printf ("Error in exprange (test1)\n");
       printf ("x = ");
       mpfr_dump (x);
-      printf ("Expected inex1 = %d, flags1 = %u, ", SIGN (inex1), flags1);
+      printf ("Expected inex1 = %d, flags1 = %u, ", VSIGN (inex1), flags1);
       mpfr_dump (y);
-      printf ("Got      inex2 = %d, flags2 = %u, ", SIGN (inex2), flags2);
+      printf ("Got      inex2 = %d, flags2 = %u, ", VSIGN (inex2), flags2);
       mpfr_dump (z);
       exit (1);
     }
@@ -609,9 +609,9 @@ exprange (void)
       printf ("Error in exprange (test2)\n");
       printf ("x = ");
       mpfr_dump (x);
-      printf ("Expected inex1 = %d, flags1 = %u, ", SIGN (inex1), flags1);
+      printf ("Expected inex1 = %d, flags1 = %u, ", VSIGN (inex1), flags1);
       mpfr_dump (y);
-      printf ("Got      inex2 = %d, flags2 = %u, ", SIGN (inex2), flags2);
+      printf ("Got      inex2 = %d, flags2 = %u, ", VSIGN (inex2), flags2);
       mpfr_dump (z);
       exit (1);
     }
@@ -631,9 +631,9 @@ exprange (void)
       printf ("Error in exprange (test3)\n");
       printf ("x = ");
       mpfr_dump (x);
-      printf ("Expected inex1 = %d, flags1 = %u, ", SIGN (inex1), flags1);
+      printf ("Expected inex1 = %d, flags1 = %u, ", VSIGN (inex1), flags1);
       mpfr_dump (y);
-      printf ("Got      inex2 = %d, flags2 = %u, ", SIGN (inex2), flags2);
+      printf ("Got      inex2 = %d, flags2 = %u, ", VSIGN (inex2), flags2);
       mpfr_dump (z);
       exit (1);
     }
@@ -654,9 +654,9 @@ exprange (void)
       printf ("Error in exprange (test4)\n");
       printf ("x = ");
       mpfr_dump (x);
-      printf ("Expected inex1 = %d, flags1 = %u, ", SIGN (inex1), flags1);
+      printf ("Expected inex1 = %d, flags1 = %u, ", VSIGN (inex1), flags1);
       mpfr_dump (y);
-      printf ("Got      inex2 = %d, flags2 = %u, ", SIGN (inex2), flags2);
+      printf ("Got      inex2 = %d, flags2 = %u, ", VSIGN (inex2), flags2);
       mpfr_dump (z);
       exit (1);
     }
@@ -679,9 +679,9 @@ exprange (void)
       printf ("Error in exprange (test5)\n");
       printf ("x = ");
       mpfr_dump (x);
-      printf ("Expected inex1 = %d, flags1 = %u, ", SIGN (inex1), flags1);
+      printf ("Expected inex1 = %d, flags1 = %u, ", VSIGN (inex1), flags1);
       mpfr_dump (y);
-      printf ("Got      inex2 = %d, flags2 = %u, ", SIGN (inex2), flags2);
+      printf ("Got      inex2 = %d, flags2 = %u, ", VSIGN (inex2), flags2);
       mpfr_dump (z);
       exit (1);
     }
@@ -695,9 +695,9 @@ exprange (void)
       printf ("Error in exprange (test6)\n");
       printf ("x = ");
       mpfr_dump (x);
-      printf ("Expected inex1 = %d, flags1 = %u, ", SIGN (inex1), flags1);
+      printf ("Expected inex1 = %d, flags1 = %u, ", VSIGN (inex1), flags1);
       mpfr_dump (y);
-      printf ("Got      inex2 = %d, flags2 = %u, ", SIGN (inex2), flags2);
+      printf ("Got      inex2 = %d, flags2 = %u, ", VSIGN (inex2), flags2);
       mpfr_dump (z);
       exit (1);
     }
@@ -713,9 +713,9 @@ exprange (void)
       printf ("Error in exprange (test7)\n");
       printf ("x = ");
       mpfr_dump (x);
-      printf ("Expected inex1 = %d, flags1 = %u, ", SIGN (inex1), flags1);
+      printf ("Expected inex1 = %d, flags1 = %u, ", VSIGN (inex1), flags1);
       mpfr_dump (y);
-      printf ("Got      inex2 = %d, flags2 = %u, ", SIGN (inex2), flags2);
+      printf ("Got      inex2 = %d, flags2 = %u, ", VSIGN (inex2), flags2);
       mpfr_dump (z);
       exit (1);
     }
@@ -733,9 +733,9 @@ exprange (void)
       printf ("Error in exprange (test8)\n");
       printf ("x = ");
       mpfr_dump (x);
-      printf ("Expected inex1 = %d, flags1 = %u, ", SIGN (inex1), flags1);
+      printf ("Expected inex1 = %d, flags1 = %u, ", VSIGN (inex1), flags1);
       mpfr_dump (y);
-      printf ("Got      inex2 = %d, flags2 = %u, ", SIGN (inex2), flags2);
+      printf ("Got      inex2 = %d, flags2 = %u, ", VSIGN (inex2), flags2);
       mpfr_dump (z);
       exit (1);
     }
@@ -749,9 +749,9 @@ exprange (void)
       printf ("Error in exprange (test9)\n");
       printf ("x = ");
       mpfr_dump (x);
-      printf ("Expected inex1 = %d, flags1 = %u, ", SIGN (inex1), flags1);
+      printf ("Expected inex1 = %d, flags1 = %u, ", VSIGN (inex1), flags1);
       mpfr_dump (y);
-      printf ("Got      inex2 = %d, flags2 = %u, ", SIGN (inex2), flags2);
+      printf ("Got      inex2 = %d, flags2 = %u, ", VSIGN (inex2), flags2);
       mpfr_dump (z);
       exit (1);
     }
@@ -768,9 +768,9 @@ exprange (void)
       printf ("Error in exprange (test10)\n");
       printf ("x = ");
       mpfr_dump (x);
-      printf ("Expected inex1 = %d, flags1 = %u, ", SIGN (inex1), flags1);
+      printf ("Expected inex1 = %d, flags1 = %u, ", VSIGN (inex1), flags1);
       mpfr_dump (y);
-      printf ("Got      inex2 = %d, flags2 = %u, ", SIGN (inex2), flags2);
+      printf ("Got      inex2 = %d, flags2 = %u, ", VSIGN (inex2), flags2);
       mpfr_dump (z);
       exit (1);
     }
@@ -797,7 +797,7 @@ tiny_aux (int stop, mpfr_exp_t e)
   spm = 1;
   for (s = 0; s < 2; s++)
     {
-      RND_LOOP(r)
+      RND_LOOP_NO_RNDF (r)
         {
           mpfr_rnd_t rr = (mpfr_rnd_t) r;
           mpfr_exp_t exponent, emax;
@@ -841,7 +841,7 @@ tiny_aux (int stop, mpfr_exp_t e)
                   mpfr_dump (x);
                   printf ("  expected inex = %2d, ", expected_inex);
                   mpfr_dump (z);
-                  printf ("  got      inex = %2d, ", SIGN (inex));
+                  printf ("  got      inex = %2d, ", VSIGN (inex));
                   mpfr_dump (y);
                   printf ("  expected flags = %u, got %u\n",
                           expected_flags, flags);
@@ -890,7 +890,7 @@ tiny (int stop)
    computing with a working precision p2. Assume that x is not an
    integer <= 2. */
 static void
-exp_lgamma (mpfr_t x, mpfr_prec_t p1, mpfr_prec_t p2)
+exp_lgamma (mpfr_ptr x, mpfr_prec_t p1, mpfr_prec_t p2)
 {
   mpfr_t yd, yu, zd, zu;
   int inexd, inexu, sign;
@@ -1055,6 +1055,48 @@ exp_lgamma_tests (void)
   set_emax (emax);
 }
 
+/* Bug reported by Frithjof Blomquist on May 19, 2020.
+   For the record, this bug was present since r8981
+   (in mpfr_bernoulli_internal, den was wrongly reset to 1 in case
+   of failure in Ziv's loop). The bug only occurred up from r8986
+   where the initial precision was reduced, but was potentially
+   present in any case of failure of Ziv's loop. */
+static void
+bug20200519 (void)
+{
+  mpfr_prec_t prec = 25093;
+  mpfr_t x, y, z, d;
+  double dd;
+  size_t min_memory_limit, old_memory_limit;
+
+  old_memory_limit = tests_memory_limit;
+  min_memory_limit = 24000000;
+  if (tests_memory_limit > 0 && tests_memory_limit < min_memory_limit)
+    tests_memory_limit = min_memory_limit;
+
+  mpfr_init2 (x, prec);
+  mpfr_init2 (y, prec);
+  mpfr_init2 (z, prec + 100);
+  mpfr_init2 (d, 24);
+  mpfr_set_d (x, 2.5, MPFR_RNDN);
+  mpfr_gamma (y, x, MPFR_RNDN);
+  mpfr_gamma (z, x, MPFR_RNDN);
+  mpfr_sub (d, y, z, MPFR_RNDN);
+  mpfr_mul_2si (d, d, prec - mpfr_get_exp (y), MPFR_RNDN);
+  dd = mpfr_get_d (d, MPFR_RNDN);
+  if (dd < -0.5 || 0.5 < dd)
+    {
+      printf ("Error in bug20200519: dd=%f\n", dd);
+      exit (1);
+    }
+  mpfr_clear (x);
+  mpfr_clear (y);
+  mpfr_clear (z);
+  mpfr_clear (d);
+
+  tests_memory_limit = old_memory_limit;
+}
+
 int
 main (int argc, char *argv[])
 {
@@ -1085,6 +1127,11 @@ main (int argc, char *argv[])
   exp_lgamma_tests ();
 
   data_check ("data/gamma", mpfr_gamma, "mpfr_gamma");
+
+  /* this test takes about one minute */
+  if (getenv ("MPFR_CHECK_EXPENSIVE") != NULL &&
+      getenv ("MPFR_CHECK_LARGEMEM") != NULL)
+    bug20200519 ();
 
   tests_end_mpfr ();
   return 0;

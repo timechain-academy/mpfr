@@ -1,6 +1,6 @@
 /* Test file for mpfr_expm1.
 
-Copyright 2001-2017 Free Software Foundation, Inc.
+Copyright 2001-2022 Free Software Foundation, Inc.
 Contributed by the AriC and Caramba projects, INRIA.
 
 This file is part of the GNU MPFR Library.
@@ -17,7 +17,7 @@ License for more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with the GNU MPFR Library; see the file COPYING.LESSER.  If not, see
-http://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
+https://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA. */
 
 #include "mpfr-test.h"
@@ -85,7 +85,7 @@ special (void)
 
   mpfr_set_ui (x, 0, MPFR_RNDN);
   test_expm1 (y, x, MPFR_RNDN);
-  if (mpfr_cmp_ui (y, 0) || mpfr_sgn (y) < 0)
+  if (MPFR_NOTZERO (y) || MPFR_IS_NEG (y))
     {
       printf ("Error for expm1(+0)\n");
       exit (1);
@@ -93,7 +93,7 @@ special (void)
 
   mpfr_neg (x, x, MPFR_RNDN);
   test_expm1 (y, x, MPFR_RNDN);
-  if (mpfr_cmp_ui (y, 0) || mpfr_sgn (y) > 0)
+  if (MPFR_NOTZERO (y) || MPFR_IS_POS (y))
     {
       printf ("Error for expm1(-0)\n");
       exit (1);
@@ -162,8 +162,8 @@ main (int argc, char *argv[])
   test_generic (MPFR_PREC_MIN, 100, 100);
 
   data_check ("data/expm1", mpfr_expm1, "mpfr_expm1");
-  bad_cases (mpfr_expm1, mpfr_log1p, "mpfr_expm1", 256, -256, 255,
-             4, 128, 800, 40);
+  bad_cases (mpfr_expm1, mpfr_log1p, "mpfr_expm1", 64, -256, 255,
+             4, 128, 800, 80);
 
   tests_end_mpfr ();
   return 0;

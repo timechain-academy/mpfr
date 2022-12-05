@@ -1,6 +1,6 @@
 /* mpfr_round_nearest_away -- round to nearest away
 
-Copyright 2012-2017 Free Software Foundation, Inc.
+Copyright 2012-2022 Free Software Foundation, Inc.
 Contributed by the AriC and Caramba projects, INRIA.
 
 This file is part of the GNU MPFR Library.
@@ -17,7 +17,7 @@ License for more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with the GNU MPFR Library; see the file COPYING.LESSER.  If not, see
-http://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
+https://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA. */
 
 #include "mpfr-impl.h"
@@ -61,7 +61,7 @@ typedef enum {
    and prepares rop to give it one more bit of precision
    and to save its old value within it. */
 void
-mpfr_round_nearest_away_begin (mpfr_t rop)
+mpfr_round_nearest_away_begin (mpfr_ptr rop)
 {
   mpfr_t tmp;
   mp_size_t xsize;
@@ -85,7 +85,7 @@ mpfr_round_nearest_away_begin (mpfr_t rop)
   /* Allocate the context within the needed mantissa. */
   xsize = MPFR_PREC2LIMBS (p);
   ext   = (mpfr_size_limb_extended_t *)
-    (*__gmp_allocate_func) (MPFR_MALLOC_EXTENDED_SIZE(xsize));
+    mpfr_allocate_func (MPFR_MALLOC_EXTENDED_SIZE(xsize));
 
   /* Save the context first. */
   ext[ALLOC_SIZE].si   = xsize;
@@ -129,7 +129,7 @@ mpfr_round_nearest_away_begin (mpfr_t rop)
    copying it back the result of the applied function
    and performing additional roundings. */
 int
-mpfr_round_nearest_away_end (mpfr_t rop, int inex)
+mpfr_round_nearest_away_end (mpfr_ptr rop, int inex)
 {
   mpfr_t    tmp;
   mp_size_t xsize;
@@ -137,8 +137,14 @@ mpfr_round_nearest_away_end (mpfr_t rop, int inex)
   mpfr_prec_t n;
   MPFR_SAVE_EXPO_DECL (expo);
 
-  /* Get back the hidden context. */
-  ext = ((mpfr_size_limb_extended_t *) MPFR_MANT(rop)) - MANTISSA;
+  /* Get back the hidden context.
+     Note: The cast to void * prevents the compiler from emitting a warning
+     (or error), such as:
+       cast increases required alignment of target type
+     with the -Wcast-align GCC option. Correct alignment is a consequence
+     of the code that built rop.
+  */
+  ext = ((mpfr_size_limb_extended_t *) (void *) MPFR_MANT(rop)) - MANTISSA;
 
   /* Create tmp with the result of the function. */
   tmp[0] = rop[0];
@@ -187,7 +193,7 @@ mpfr_round_nearest_away_end (mpfr_t rop, int inex)
     inex = -mpfr_sgn (rop);
 
   /* Free tmp (cannot call mpfr_clear): free the associated context. */
-  (*__gmp_free_func)(ext, MPFR_MALLOC_EXTENDED_SIZE(xsize));
+  mpfr_free_func(ext, MPFR_MALLOC_EXTENDED_SIZE(xsize));
 
   return mpfr_check_range (rop, inex, MPFR_RNDN);
 }

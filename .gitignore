@@ -1,0 +1,7 @@
+src/.deps/
+src/.libs/
+**.o
+**.lo
+**.la
+**:w
+.deps**

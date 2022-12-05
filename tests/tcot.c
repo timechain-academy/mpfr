@@ -1,6 +1,6 @@
 /* Test file for mpfr_cot.
 
-Copyright 2005-2017 Free Software Foundation, Inc.
+Copyright 2005-2022 Free Software Foundation, Inc.
 Contributed by the AriC and Caramba projects, INRIA.
 
 This file is part of the GNU MPFR Library.
@@ -17,7 +17,7 @@ License for more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with the GNU MPFR Library; see the file COPYING.LESSER.  If not, see
-http://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
+https://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA. */
 
 #include "mpfr-test.h"
@@ -107,7 +107,7 @@ two2emin (mpfr_exp_t e)
         mpfr_div (y, y, x, (mpfr_rnd_t) rnd);  /* 1/x - SIGN(x).epsilon */
         mpfr_set_si_2exp (x, i, -e, MPFR_RNDN);
         mpfr_cot (x, x, (mpfr_rnd_t) rnd);
-        if (! mpfr_equal_p (x, y))
+        if (! mpfr_equal_p (x, y) && rnd != MPFR_RNDF)
           {
             printf ("Error in two2emin for i = %d and rnd = %s\n",
                     i, mpfr_print_rnd_mode ((mpfr_rnd_t) rnd));

@@ -1,6 +1,6 @@
 /* mpfr_fits_intmax_p -- test whether an mpfr fits an intmax_t.
 
-Copyright 2004, 2006-2017 Free Software Foundation, Inc.
+Copyright 2004, 2006-2022 Free Software Foundation, Inc.
 Contributed by the AriC and Caramba projects, INRIA.
 
 This file is part of the GNU MPFR Library.
@@ -17,14 +17,10 @@ License for more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with the GNU MPFR Library; see the file COPYING.LESSER.  If not, see
-http://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
+https://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA. */
 
-#ifdef HAVE_CONFIG_H
-# include "config.h"
-#endif
-
-#include "mpfr-intmax.h"
+#define MPFR_NEED_INTMAX_H
 #include "mpfr-impl.h"
 
 #ifdef _MPFR_H_HAVE_INTMAX_T
@@ -41,7 +37,7 @@ mpfr_fits_intmax_p (mpfr_srcptr f, mpfr_rnd_t rnd)
   int res;
 
   if (MPFR_UNLIKELY (MPFR_IS_SINGULAR (f)))
-    /* Zero always fits */
+    /* Zero always fit */
     return MPFR_IS_ZERO (f) ? 1 : 0;
 
   /* now it fits if either
@@ -63,13 +59,13 @@ mpfr_fits_intmax_p (mpfr_srcptr f, mpfr_rnd_t rnd)
     {
       uintmax_t s;
       /* In C89, the division on negative integers isn't well-defined. */
-      s = SAFE_ABS (uintmax_t, MPFR_INTMAX_MIN);
+      s = SAFE_ABS (uintmax_t, INTMAX_MIN);
       for (prec = 0; s != 0; s /= 2, prec ++);
     }
   else
     {
       intmax_t s;
-      s = MPFR_INTMAX_MAX;
+      s = INTMAX_MAX;
       for (prec = 0; s != 0; s /= 2, prec ++);
     }
 
@@ -88,12 +84,14 @@ mpfr_fits_intmax_p (mpfr_srcptr f, mpfr_rnd_t rnd)
   /* hard case: first round to prec bits, then check */
   saved_flags = __gmpfr_flags;
   mpfr_init2 (x, prec);
-  mpfr_set (x, f, rnd);
+  /* for RNDF, it is necessary and sufficient to check it fits when rounding
+     away from zero */
+  mpfr_set (x, f, (rnd == MPFR_RNDF) ? MPFR_RNDA : rnd);
 
   if (neg)
     {
       mpfr_init2 (y, prec);
-      mpfr_set_sj (y, MPFR_INTMAX_MIN, MPFR_RNDN);
+      mpfr_set_sj (y, INTMAX_MIN, MPFR_RNDN);
       res = mpfr_cmp (x, y) >= 0;
       mpfr_clear (y);
     }

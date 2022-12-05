@@ -1,6 +1,6 @@
 /* mpfr-mini-gmp.c -- Interface functions for mini-gmp.
 
-Copyright 2014-2017 Free Software Foundation, Inc.
+Copyright 2014-2022 Free Software Foundation, Inc.
 Contributed by the AriC and Caramba projects, INRIA.
 
 This file is part of the GNU MPFR Library.
@@ -17,7 +17,7 @@ License for more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with the GNU MPFR Library; see the file COPYING.LESSER.  If not, see
-http://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
+https://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA. */
 
 /* The following include will do 2 things: include the config.h
@@ -27,7 +27,7 @@ http://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
 
 #ifdef MPFR_USE_MINI_GMP
 
-#include "mpfr-mini-gmp.h"
+/************************ random generation functions ************************/
 
 #ifdef WANT_gmp_randinit_default
 void
@@ -40,7 +40,9 @@ gmp_randinit_default (gmp_randstate_t state)
 void
 gmp_randseed_ui (gmp_randstate_t state, unsigned long int seed)
 {
-  srand48 (seed);
+  /* Note: We possibly ignore the high-order bits of seed. One should take
+     that into account when setting GMP_CHECK_RANDOMIZE for the tests. */
+  srand ((unsigned int) seed);
 }
 #endif
 
@@ -51,30 +53,127 @@ gmp_randclear (gmp_randstate_t state)
 }
 #endif
 
-#ifdef WANT_mpn_neg
-mp_limb_t
-mpn_neg (mp_limb_t *rp, const mp_limb_t *sp, mp_size_t n)
-{
-  mp_size_t i;
-
-  for (i = 0; i < n; i++)
-    rp[i] = ~sp[i];
-  /* the return value of mpn_neg is the borrow as if we subtracted
-     {sp, n} from {0, n}, i.e., it is always 1 unless {sp, n} is zero */
-  return 1 - mpn_add_1 (rp, rp, n, (mp_limb_t) 1);
-}
-#endif
-
-#ifdef WANT_mpn_com
+#ifdef WANT_gmp_randinit_set
 void
-mpn_com (mp_limb_t *rp, const mp_limb_t *sp, mp_size_t n)
+gmp_randinit_set (gmp_randstate_t s1, gmp_randstate_t s2)
 {
-  mp_size_t i;
-
-  for (i = 0; i < n; i++)
-    rp[i] = ~sp[i];
 }
 #endif
+
+static unsigned int
+rand15 (void)
+{
+  /* With a good PRNG, we could use "rand () % 32768", but let's choose
+     the following from <https://c-faq.com/lib/randrange.html>. Note that
+     on most platforms, the compiler should generate a shift. */
+  return rand () / (RAND_MAX / 32768 + 1);
+}
+
+static mp_limb_t
+random_limb (void)
+{
+  mp_limb_t r = 0;
+  int i = GMP_NUMB_BITS;
+
+  while (i > 0)
+    {
+      r = (r << 15) | rand15 ();
+      i -= 15;
+    }
+
+  return r;
+}
+
+#ifdef WANT_mpz_urandomb
+void
+mpz_urandomb (mpz_t rop, gmp_randstate_t state, mp_bitcnt_t nbits)
+{
+  unsigned long n, i;
+
+  mpz_realloc2 (rop, nbits);
+  n = (nbits - 1) / GMP_NUMB_BITS + 1; /* number of limbs */
+  for (i = n; i-- > 0;)
+    rop->_mp_d[i] = random_limb ();
+  i = n * GMP_NUMB_BITS - nbits;
+  /* mask the upper i bits */
+  if (i)
+    rop->_mp_d[n-1] = MPFR_LIMB_LSHIFT(rop->_mp_d[n-1], i) >> i;
+  while (n > 0 && (rop->_mp_d[n-1] == 0))
+    n--;
+  rop->_mp_size = n;
+}
+#endif
+
+#ifdef WANT_gmp_urandomm_ui
+/* generates a random unsigned long */
+static unsigned long
+random_ulong (void)
+{
+#ifdef MPFR_LONG_WITHIN_LIMB
+  /* we assume a limb and an unsigned long have both a number of different
+     values that is a power of two, thus when we cast a random limb into
+     an unsigned long, we still get an uniform distribution */
+  return random_limb ();
+#else
+  /* with the same assumption as above, we need to generate as many random
+     limbs needed to "fill" an unsigned long */
+  unsigned long u, v;
+
+  v = MPFR_LIMB_MAX;
+  u = random_limb ();
+  while (v < ULONG_MAX)
+    {
+      v = (v << GMP_NUMB_BITS) + MPFR_LIMB_MAX;
+      u = (u << GMP_NUMB_BITS) + random_limb ();
+    }
+  return u;
+#endif
+}
+
+unsigned long
+gmp_urandomm_ui (gmp_randstate_t state, unsigned long n)
+{
+  unsigned long p, q, r;
+
+  MPFR_ASSERTN (n > 0);
+  p = random_ulong (); /* p is in [0, ULONG_MAX], thus p is uniform among
+                          ULONG_MAX+1 values */
+  q = n * (ULONG_MAX / n);
+  r = ULONG_MAX % n;
+  if (r != n - 1) /* ULONG_MAX+1 is not multiple of n, will happen whenever
+                     n is not a power of two */
+    while (p >= q)
+      p = random_ulong ();
+  return p % n;
+}
+#endif
+
+#ifdef WANT_gmp_urandomb_ui
+unsigned long
+gmp_urandomb_ui (gmp_randstate_t state, unsigned long n)
+{
+#ifdef MPFR_LONG_WITHIN_LIMB
+  /* Since n may be equal to the width of unsigned long,
+     we must not shift 1UL by n as this may be UB. */
+  return n == 0 ? 0 : random_limb () & (((1UL << (n - 1)) << 1) - 1);
+#else
+  unsigned long res = 0;
+  int m = n; /* remaining bits to generate */
+  while (m >= GMP_NUMB_BITS)
+    {
+      /* we can generate a full limb */
+      res = (res << GMP_NUMB_BITS) | (unsigned long) random_limb ();
+      m -= GMP_NUMB_BITS;
+    }
+  MPFR_ASSERTD (m < GMP_NUMB_BITS);  /* thus m < width(unsigned long) */
+  if (m != 0) /* generate m extra bits */
+    res = (res << m) | (unsigned long) (random_limb () % (1UL << m));
+  return res;
+#endif
+}
+#endif
+
+/************************* division functions ********************************/
 
 #ifdef WANT_mpn_divrem_1
 mp_limb_t
@@ -112,54 +211,6 @@ mpn_divrem_1 (mp_limb_t *qp, mp_size_t qxn, mp_limb_t *np, mp_size_t nn,
   if (qxn != 0)
     mpz_clear (n);
   return ret;
-}
-#endif
-
-static mp_limb_t
-random_limb (void)
-{
-  /* lrand48() only gives 31 bits */
-#if GMP_NUMB_BITS == 32
-  return lrand48 () + (lrand48 () << 31);
-#else
-  return lrand48 () + (((mp_limb_t) lrand48 ()) << 31)
-    + (((mp_limb_t) lrand48 ()) << 62);
-#endif
-}
-
-#ifdef WANT_mpz_urandomb
-void
-mpz_urandomb (mpz_t rop, gmp_randstate_t state, mp_bitcnt_t nbits)
-{
-  unsigned long n, i;
-
-  mpz_realloc2 (rop, nbits);
-  n = (nbits - 1) / GMP_NUMB_BITS + 1; /* number of limbs */
-  for (i = n; i-- > 0;)
-    rop->_mp_d[i] = random_limb ();
-  i = n * GMP_NUMB_BITS - nbits;
-  /* mask the upper i bits */
-  if (i)
-    rop->_mp_d[n-1] = (rop->_mp_d[n-1] << i) >> i;
-  while (n > 0 && (rop->_mp_d[n-1] == 0))
-    n--;
-  rop->_mp_size = n;
-}
-#endif
-
-#ifdef WANT_gmp_urandomm_ui
-unsigned long
-gmp_urandomm_ui (gmp_randstate_t state, unsigned long n)
-{
-  return random_limb () % n;
-}
-#endif
-
-#ifdef WANT_gmp_urandomb_ui
-unsigned long
-gmp_urandomb_ui (gmp_randstate_t state, unsigned long n)
-{
-  return random_limb () % (1UL << n);
 }
 #endif
 
@@ -222,36 +273,46 @@ mpn_tdiv_qr (mp_limb_t *qp, mp_limb_t *rp, mp_size_t qxn,
 }
 #endif
 
-#ifdef WANT_mpn_sqrtrem
-mp_size_t
-mpn_sqrtrem (mp_limb_t *sp, mp_limb_t *rp, const mp_limb_t *np, mp_size_t nn)
-{
-  mpz_t s, r, n;
-  mp_size_t sn = (nn + 1) >> 1, ret;
-
-  MPFR_ASSERTN(rp == NULL);
-  n->_mp_d = (mp_limb_t*) np;
-  n->_mp_size = nn;
-  mpz_init (s);
-  mpz_init (r);
-  mpz_sqrtrem (s, r, n);
-  if (s->_mp_size > 0)
-    mpn_copyi (sp, s->_mp_d, s->_mp_size);
-  if (s->_mp_size < sn)
-    mpn_zero (sp + s->_mp_size, sn - s->_mp_size);
-  ret = r->_mp_size;
-  mpz_clear (s);
-  mpz_clear (r);
-  return ret;
-}
-#endif
-
-#ifdef WANT_mpz_dump
+#if 0 /* this function is useful for debugging, thus please keep it here */
 void
 mpz_dump (mpz_t z)
 {
-  mpz_out_str (stdout, 10, z);
-  putchar ('\n');
+  mp_size_t n = z->_mp_size;
+
+  MPFR_STAT_STATIC_ASSERT ((GMP_NUMB_BITS % 4) == 0);
+
+  if (n == 0)
+    printf ("0");
+  else
+    {
+      int first = 1;
+      if (n < 0)
+        {
+          printf ("-");
+          n = -n;
+        }
+      while (n > 0)
+        {
+          if (first)
+            {
+              printf ("%lx", (unsigned long) z->_mp_d[n-1]);
+              first = 0;
+            }
+          else
+            {
+              char s[17];
+              int len;
+              sprintf (s, "%lx", (unsigned long) z->_mp_d[n-1]);
+              len = strlen (s);
+              /* one character should be printed for 4 bits */
+              while (len++ < GMP_NUMB_BITS / 4)
+                printf ("0");
+              printf ("%lx", (unsigned long) z->_mp_d[n-1]);
+            }
+          n--;
+        }
+    }
+  printf ("\n");
 }
 #endif
 

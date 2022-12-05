@@ -1,6 +1,6 @@
 /* tinternals -- Test for internals.
 
-Copyright 2005-2017 Free Software Foundation, Inc.
+Copyright 2005-2022 Free Software Foundation, Inc.
 Contributed by the AriC and Caramba projects, INRIA.
 
 This file is part of the GNU MPFR Library.
@@ -17,7 +17,7 @@ License for more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with the GNU MPFR Library; see the file COPYING.LESSER.  If not, see
-http://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
+https://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA. */
 
 #define MPFR_NEED_LONGLONG_H
@@ -67,7 +67,7 @@ test_round_near_x (void)
            mpfr_neg (x, x, MPFR_RNDN), p++, neg++)
         for (err = 2; err <= 6; err++)
           for (dir = 0; dir <= 1; dir++)
-            RND_LOOP(r)
+            RND_LOOP_NO_RNDF (r)
               {
                 inex = mpfr_round_near_x (y, x, err, dir, (mpfr_rnd_t) r);
 

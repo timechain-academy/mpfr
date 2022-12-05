@@ -1,6 +1,6 @@
 /* Test file for mpfr_set_str.
 
-Copyright 1999, 2001-2017 Free Software Foundation, Inc.
+Copyright 1999, 2001-2022 Free Software Foundation, Inc.
 Contributed by the AriC and Caramba projects, INRIA.
 
 This file is part of the GNU MPFR Library.
@@ -17,7 +17,7 @@ License for more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with the GNU MPFR Library; see the file COPYING.LESSER.  If not, see
-http://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
+https://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA. */
 
 #include "mpfr-test.h"
@@ -91,6 +91,22 @@ bug20081028 (void)
       exit (1);
     }
   mpfr_clear (x);
+}
+
+static void
+bug20180908 (void)
+{
+  mpfr_t x, y;
+  const char s[] = "ssq4";
+
+  mpfr_init2 (x, 12);
+  mpfr_init2 (y, 12);
+  mpfr_set_str_binary (x, "0.100010111010E24");
+  /* x = 9150464 = [4, 52, 54, 54] in base 55 */
+  mpfr_set_str (y, s, 55, MPFR_RNDN);
+  MPFR_ASSERTN (mpfr_equal_p (x, y));
+  mpfr_clear (x);
+  mpfr_clear (y);
 }
 
 int
@@ -357,7 +373,7 @@ main (int argc, char *argv[])
     }
 
   /* in this example, I think there was a pb in the old function :
-     result of mpfr_set_str_old for the same number , but with more
+     result of mpfr_set_str_old for the same number, but with more
      precision is: 1.111111111110000000000000000111111111111111111111111110000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100111000100001100000010101100111010e184
      this result is the same as mpfr_set_str */
   mpfr_set_prec (x, 64);
@@ -787,16 +803,17 @@ main (int argc, char *argv[])
 
   /* end of tests added by Alain Delplanque */
 
-  /* check that flags are correctly cleared */
   mpfr_set_nan (x);
   mpfr_set_str (x, "+0.0", 10, MPFR_RNDN);
-  if (!mpfr_number_p(x) || mpfr_cmp_ui (x, 0) != 0 || mpfr_sgn (x) < 0)
+  if (MPFR_NOTZERO (x) || MPFR_IS_NEG (x))
     {
       printf ("x <- +0.0 failed after x=NaN\n");
       exit (1);
     }
+
+  mpfr_set_nan (x);
   mpfr_set_str (x, "-0.0", 10, MPFR_RNDN);
-  if (!mpfr_number_p(x) || mpfr_cmp_ui (x, 0) != 0 || mpfr_sgn (x) > 0)
+  if (MPFR_NOTZERO (x) || MPFR_IS_POS (x))
     {
       printf ("x <- -0.0 failed after x=NaN\n");
       exit (1);
@@ -843,6 +860,7 @@ main (int argc, char *argv[])
 
   check_underflow ();
   bug20081028 ();
+  bug20180908 ();
 
   tests_end_mpfr ();
   return 0;

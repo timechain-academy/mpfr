@@ -1,6 +1,6 @@
 /* tabort_defalloc2 -- Test for abort due to reaching out of memory
 
-Copyright 2012-2017 Free Software Foundation, Inc.
+Copyright 2012-2022 Free Software Foundation, Inc.
 Contributed by the AriC and Caramba projects, INRIA.
 
 This file is part of the GNU MPFR Library.
@@ -17,7 +17,7 @@ License for more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with the GNU MPFR Library; see the file COPYING.LESSER.  If not, see
-http://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
+https://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA. */
 
 #define MPFR_NEED_LONGLONG_H
@@ -37,13 +37,18 @@ main (int argc, char **argv)
 {
   void *ptr;
 
+  /* Disable this test under Valgrind, which complains due to the
+     large allocation size. */
+  if (tests_run_within_valgrind ())
+    return 77;
+
   tests_start_mpfr ();
   tests_expect_abort ();
 
   printf ("[tabort_defalloc2] Check for good handling of abort"
           " in memory function.\n");
-  ptr = (*__gmp_allocate_func) (128);
-  ptr = (*__gmp_reallocate_func) (ptr, 128, (size_t) -1);
+  ptr = mpfr_allocate_func (128);
+  ptr = mpfr_reallocate_func (ptr, 128, (size_t) -1);
 
   tests_end_mpfr ();
   return -1; /* Should not be executed */
@@ -58,4 +63,3 @@ main (void)
 }
 
 #endif
-

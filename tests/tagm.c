@@ -1,6 +1,6 @@
 /* Test file for mpfr_agm.
 
-Copyright 1999, 2001-2017 Free Software Foundation, Inc.
+Copyright 1999, 2001-2022 Free Software Foundation, Inc.
 Contributed by the AriC and Caramba projects, INRIA.
 
 This file is part of the GNU MPFR Library.
@@ -17,7 +17,7 @@ License for more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with the GNU MPFR Library; see the file COPYING.LESSER.  If not, see
-http://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
+https://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA. */
 
 #include "mpfr-test.h"
@@ -78,7 +78,7 @@ check4 (const char *as, const char *bs, mpfr_rnd_t rnd_mode,
       newflags = __gmpfr_flags;
       expflags |= MPFR_FLAGS_INEXACT;
 
-      if (SIGN (inex2) != inex || newflags != expflags ||
+      if (VSIGN (inex2) != inex || newflags != expflags ||
           ! mpfr_equal_p (tres, tc))
         {
           printf ("mpfr_agm failed in rnd_mode=%s for\n",
@@ -327,7 +327,7 @@ check_special (void)
   mpfr_set_ui (x, 1, MPFR_RNDN);
   mpfr_set_ui (y, 1, MPFR_RNDN);
   mpfr_agm (m, x, y, MPFR_RNDN);
-  MPFR_ASSERTN (mpfr_cmp_ui (m ,1) == 0);
+  MPFR_ASSERTN (mpfr_cmp_ui (m, 1) == 0);
 
   /* agm(-1,-2) is NaN */
   mpfr_set_si (x, -1, MPFR_RNDN);
@@ -354,7 +354,6 @@ main (int argc, char* argv[])
   tests_start_mpfr ();
 
   check_special ();
-
   check_large ();
   check_eq ();
   check4 ("2.0", "1.0", MPFR_RNDN, "1.456791031046906869", -1);

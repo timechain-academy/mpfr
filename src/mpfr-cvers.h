@@ -1,6 +1,6 @@
 /* Utilities for MPFR developers, not exported.
 
-Copyright 1999-2017 Free Software Foundation, Inc.
+Copyright 1999-2022 Free Software Foundation, Inc.
 Contributed by the AriC and Caramba projects, INRIA.
 
 This file is part of the GNU MPFR Library.
@@ -17,7 +17,7 @@ License for more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with the GNU MPFR Library; see the file COPYING.LESSER.  If not, see
-http://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
+https://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA. */
 
 #ifndef __MPFR_CVERS_H__
@@ -25,9 +25,7 @@ http://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
 
 /* Macros to detect STDC, ICC, GCC, and GLIBC versions */
 #if defined(__STDC_VERSION__)
-# define __MPFR_STDC(version) (__STDC_VERSION__>=(version))
-#elif defined(__STDC__)
-# define __MPFR_STDC(version) (0 == (version))
+# define __MPFR_STDC(version) (__STDC_VERSION__ >= (version))
 #else
 # define __MPFR_STDC(version) 0
 #endif

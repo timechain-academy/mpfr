@@ -1,6 +1,6 @@
 /* mpfr_sub1 -- internal function to perform a "real" subtraction
 
-Copyright 2001-2017 Free Software Foundation, Inc.
+Copyright 2001-2022 Free Software Foundation, Inc.
 Contributed by the AriC and Caramba projects, INRIA.
 
 This file is part of the GNU MPFR Library.
@@ -17,7 +17,7 @@ License for more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with the GNU MPFR Library; see the file COPYING.LESSER.  If not, see
-http://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
+https://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA. */
 
 #include "mpfr-impl.h"
@@ -28,13 +28,11 @@ http://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
    a positive value otherwise.
 */
 
-/* TODO: check the code in case exp_b == MPFR_EXP_MAX. */
-
 int
 mpfr_sub1 (mpfr_ptr a, mpfr_srcptr b, mpfr_srcptr c, mpfr_rnd_t rnd_mode)
 {
   int sign;
-  mpfr_exp_t diff_exp, exp_b;
+  mpfr_exp_t diff_exp, exp_a, exp_b;
   mpfr_prec_t cancel, cancel1;
   mp_size_t cancel2, an, bn, cn, cn0;
   mp_limb_t *ap, *bp, *cp;
@@ -42,7 +40,7 @@ mpfr_sub1 (mpfr_ptr a, mpfr_srcptr b, mpfr_srcptr c, mpfr_rnd_t rnd_mode)
   mpfr_prec_t aq, bq;
   int inexact, shift_b, shift_c, add_exp = 0;
   int cmp_low = 0; /* used for rounding to nearest: 0 if low(b) = low(c),
-                      negative if low(b) < low(c), positive if low(b)>low(c) */
+                      negative if low(b) < low(c), positive if low(b) > low(c) */
   int sh, k;
   MPFR_TMP_DECL(marker);
 
@@ -55,8 +53,10 @@ mpfr_sub1 (mpfr_ptr a, mpfr_srcptr b, mpfr_srcptr c, mpfr_rnd_t rnd_mode)
   (void) MPFR_GET_PREC (c);
 
   sign = mpfr_cmp2 (b, c, &cancel);
+
   if (MPFR_UNLIKELY(sign == 0))
     {
+      MPFR_LOG_MSG (("sign=0\n", 0));
       if (rnd_mode == MPFR_RNDD)
         MPFR_SET_NEG (a);
       else
@@ -64,6 +64,10 @@ mpfr_sub1 (mpfr_ptr a, mpfr_srcptr b, mpfr_srcptr c, mpfr_rnd_t rnd_mode)
       MPFR_SET_ZERO (a);
       MPFR_RET (0);
     }
+
+  /* sign != 0, so that cancel has a valid value. */
+  MPFR_LOG_MSG (("sign=%d cancel=%Pd\n", sign, cancel));
+  MPFR_ASSERTD (cancel >= 0 && cancel <= MPFR_PREC_MAX);
 
   /*
    * If subtraction: sign(a) = sign * sign(b)
@@ -91,9 +95,29 @@ mpfr_sub1 (mpfr_ptr a, mpfr_srcptr b, mpfr_srcptr c, mpfr_rnd_t rnd_mode)
 
   if (MPFR_UNLIKELY (MPFR_IS_UBF (b) || MPFR_IS_UBF (c)))
     {
-      exp_b = MPFR_IS_UBF (b) ?
-        mpfr_ubf_zexp2exp (MPFR_ZEXP (b)) : MPFR_GET_EXP (b);
+      exp_b = MPFR_UBF_GET_EXP (b);
+      /* Early underflow detection. Rare, but a test is needed anyway
+         since in the "MAX (aq, bq) + 2 <= diff_exp" branch, the exponent
+         may decrease and MPFR_EXP_MIN would yield an integer overflow. */
+      if (MPFR_UNLIKELY (exp_b < __gmpfr_emin - 1))
+        {
+          if (rnd_mode == MPFR_RNDN)
+            rnd_mode = MPFR_RNDZ;
+          return mpfr_underflow (a, rnd_mode, MPFR_SIGN(a));
+        }
       diff_exp = mpfr_ubf_diff_exp (b, c);
+      MPFR_LOG_MSG (("UBF: exp_b=%" MPFR_EXP_FSPEC "d%s "
+                     "diff_exp=%" MPFR_EXP_FSPEC "d%s\n",
+                     (mpfr_eexp_t) exp_b,
+                     exp_b == MPFR_EXP_MAX ? "=MPFR_EXP_MAX" : "",
+                     (mpfr_eexp_t) diff_exp,
+                     diff_exp == MPFR_EXP_MAX ? "=MPFR_EXP_MAX" : ""));
+      /* If diff_exp == MPFR_EXP_MAX, the actual value can be larger,
+         but anyway, since mpfr_exp_t >= mp_size_t, this will be the
+         case c small below, and the exact value does not matter. */
+      /* mpfr_set4 below used with MPFR_RNDF does not support UBF. */
+      if (rnd_mode == MPFR_RNDF)
+        rnd_mode = MPFR_RNDN;
     }
   else
     {
@@ -118,27 +142,29 @@ mpfr_sub1 (mpfr_ptr a, mpfr_srcptr b, mpfr_srcptr c, mpfr_rnd_t rnd_mode)
          = B.BBBBBBBBBBBBBBB
           -                     C.CCCCCCCCCCCCC */
       /* A = S*ABS(B) +/- ulp(a) */
-      MPFR_EXP (a) = exp_b;  /* may be up to MPFR_EXP_MAX */
+
+      /* since we can't have an exact result, for RNDF we can truncate b */
+      if (rnd_mode == MPFR_RNDF)
+        return mpfr_set4 (a, b, MPFR_RNDZ, MPFR_SIGN (a));
+
+      exp_a = exp_b;  /* may be any out-of-range value due to UBF */
       MPFR_RNDRAW_EVEN (inexact, a, MPFR_MANT (b), bq,
                         rnd_mode, MPFR_SIGN (a),
-                        if (MPFR_EXP (a) != MPFR_EXP_MAX)
-                          ++ MPFR_EXP (a));
+                        if (exp_a != MPFR_EXP_MAX)
+                          exp_a ++);
       MPFR_LOG_MSG (("inexact=%d\n", inexact));
-      if (inexact == 0)
-        {
+      if (inexact == 0 &&
           /* a = b, but the exact value of b - c is a bit below. Then,
              except for directed rounding similar to toward zero and
              before overflow checking: a is the correctly rounded value
              and since |b| - |c| < |a|, the ternary value value is given
              by the sign of a. */
-          if (! MPFR_IS_LIKE_RNDZ (rnd_mode, MPFR_IS_NEG (a)))
-            {
-              inexact = MPFR_INT_SIGN (a);
-              goto check_overflow;
-            }
-        }
-      else  /* inexact != 0 */
+          ! MPFR_IS_LIKE_RNDZ (rnd_mode, MPFR_IS_NEG (a)))
         {
+          MPFR_LOG_MSG (("c small, case 1\n", 0));
+          inexact = MPFR_INT_SIGN (a);
+        }
+      else if (inexact != 0 &&
           /*   A.AAAAAAAAAAAAAA
              = B.BBBBBBBBBBBBBBB
               -                   C.CCCCCCCCCCCCC */
@@ -158,27 +184,41 @@ mpfr_sub1 (mpfr_ptr a, mpfr_srcptr b, mpfr_srcptr c, mpfr_rnd_t rnd_mode)
                1.BBBBBBBBBBBBB1+1 if inexact == -EVEN_INEX (x == 1)
              which means we get a wrong rounded result if x == 1,
              i.e. inexact == MPFR_EVEN_INEX (for positive numbers). */
-          if (MPFR_LIKELY (inexact != MPFR_EVEN_INEX * MPFR_INT_SIGN (a)))
-            goto check_overflow;
-        }
-      /* We need to take the value preceding |a|. We can't use
-         mpfr_nexttozero due to a possible out-of-range exponent.
-         But this will allow us to have more specific code. */
-      MPFR_LOG_MSG (("correcting the value of a\n", 0));
-      sh = (mpfr_prec_t) an * GMP_NUMB_BITS - aq;
-      mpn_sub_1 (ap, ap, an, MPFR_LIMB_ONE << sh);
-      if (MPFR_UNLIKELY (MPFR_LIMB_MSB (ap[an-1]) == 0))
+               MPFR_LIKELY (inexact != MPFR_EVEN_INEX * MPFR_INT_SIGN (a)))
         {
-          MPFR_EXP (a) --;
-          /* The following is valid whether an = 1 or an > 1. */
-          ap[an-1] |= MPFR_LIMB_HIGHBIT;
+          MPFR_LOG_MSG (("c small, case 2\n", 0));
+          /* nothing to do */
         }
-      inexact = - MPFR_INT_SIGN (a);
-    check_overflow:
-      if (MPFR_UNLIKELY (MPFR_EXP (a) > __gmpfr_emax))
-        return mpfr_overflow (a, rnd_mode, MPFR_SIGN (a));
       else
-        MPFR_RET (inexact);
+        {
+          /* We need to take the value preceding |a|. We can't use
+             mpfr_nexttozero due to a possible out-of-range exponent.
+             But this will allow us to have more specific code. */
+          MPFR_LOG_MSG (("c small, case 3: correcting the value of a\n", 0));
+          sh = (mpfr_prec_t) an * GMP_NUMB_BITS - aq;
+          mpn_sub_1 (ap, ap, an, MPFR_LIMB_ONE << sh);
+          if (MPFR_UNLIKELY (MPFR_LIMB_MSB (ap[an-1]) == 0))
+            {
+              exp_a --;
+              /* The following is valid whether an = 1 or an > 1. */
+              ap[an-1] |= MPFR_LIMB_HIGHBIT;
+            }
+          inexact = - MPFR_INT_SIGN (a);
+        }
+      /* The underflow case is possible only with UBF. The overflow case
+         is also possible with normal FP due to rounding. */
+      if (MPFR_UNLIKELY (exp_a > __gmpfr_emax))
+        return mpfr_overflow (a, rnd_mode, MPFR_SIGN (a));
+      if (MPFR_UNLIKELY (exp_a < __gmpfr_emin))
+        {
+          if (rnd_mode == MPFR_RNDN &&
+              (exp_a < __gmpfr_emin - 1 ||
+               (inexact * MPFR_INT_SIGN (a) >= 0 && mpfr_powerof2_raw (a))))
+            rnd_mode = MPFR_RNDZ;
+          return mpfr_underflow (a, rnd_mode, MPFR_SIGN(a));
+        }
+      MPFR_SET_EXP (a, exp_a);
+      MPFR_RET (inexact);
     }
 
   /* reserve a space to store b aligned with the result, i.e. shifted by
@@ -233,7 +273,7 @@ mpfr_sub1 (mpfr_ptr a, mpfr_srcptr b, mpfr_srcptr c, mpfr_rnd_t rnd_mode)
       cp[0] = mpn_rshift (cp + 1, MPFR_MANT(c), cn++, shift_c);
     }
 
-#ifdef DEBUG
+#if 0
   MPFR_LOG_MSG (("rnd=%s shift_b=%d shift_c=%d diffexp=%" MPFR_EXP_FSPEC
                  "d\n", mpfr_print_rnd_mode (rnd_mode), shift_b, shift_c,
                  (mpfr_eexp_t) diff_exp));
@@ -254,7 +294,7 @@ mpfr_sub1 (mpfr_ptr a, mpfr_srcptr b, mpfr_srcptr c, mpfr_rnd_t rnd_mode)
      by the multiplication code), then the computation of cancel2 could
      be simplified to
        cancel2 = (cancel - (diff_exp - shift_c)) / GMP_NUMB_BITS;
-     because cancel, diff_exp and shift_c are all nonnegative and
+     because cancel, diff_exp and shift_c are all non-negative and
      these variables are signed. */
 
   MPFR_ASSERTD (cancel >= 0);
@@ -266,7 +306,7 @@ mpfr_sub1 (mpfr_ptr a, mpfr_srcptr b, mpfr_srcptr c, mpfr_rnd_t rnd_mode)
   else
     cancel2 = - (mp_size_t) ((diff_exp - cancel) / GMP_NUMB_BITS);
   /* the high cancel2 limbs from b should not be taken into account */
-#ifdef DEBUG
+#if 0
   MPFR_LOG_MSG (("cancel=%Pd cancel1=%Pd cancel2=%Pd\n",
                  cancel, cancel1, cancel2));
 #endif
@@ -352,7 +392,13 @@ mpfr_sub1 (mpfr_ptr a, mpfr_srcptr b, mpfr_srcptr c, mpfr_rnd_t rnd_mode)
   carry = ap[0] & MPFR_LIMB_MASK (sh);
   ap[0] -= carry;
 
-  if (rnd_mode == MPFR_RNDN)
+  if (rnd_mode == MPFR_RNDF)
+    {
+      inexact = 0;
+      /* truncating is always correct since -1 ulp < low(b) - low(c) < 1 ulp */
+      goto truncate;
+    }
+  else if (rnd_mode == MPFR_RNDN)
     {
       if (MPFR_LIKELY(sh))
         {
@@ -393,7 +439,7 @@ mpfr_sub1 (mpfr_ptr a, mpfr_srcptr b, mpfr_srcptr c, mpfr_rnd_t rnd_mode)
   cn0 = cn;
   cn -= an + cancel2;
 
-#ifdef DEBUG
+#if 0
   MPFR_LOG_MSG (("last sh=%d bits from a are %Mu, bn=%Pd, cn=%Pd\n",
                  sh, carry, (mpfr_prec_t) bn, (mpfr_prec_t) cn));
 #endif
@@ -486,7 +532,7 @@ mpfr_sub1 (mpfr_ptr a, mpfr_srcptr b, mpfr_srcptr c, mpfr_rnd_t rnd_mode)
             }
         }
 
-#ifdef DEBUG
+#if 0
       MPFR_LOG_MSG (("k=%d bb=%Mu cc=%Mu cmp_low=%d\n", k, bb, cc, cmp_low));
 #endif
 
@@ -641,27 +687,42 @@ mpfr_sub1 (mpfr_ptr a, mpfr_srcptr b, mpfr_srcptr c, mpfr_rnd_t rnd_mode)
   /* we have to set MPFR_EXP(a) to MPFR_EXP(b) - cancel + add_exp, taking
      care of underflows/overflows in that computation, and of the allowed
      exponent range */
+  MPFR_TMP_FREE (marker);
   if (MPFR_LIKELY(cancel))
     {
-      mpfr_exp_t exp_a;
-
       cancel -= add_exp; /* OK: add_exp is an int equal to 0 or 1 */
+      MPFR_ASSERTD (cancel >= 0);
+      /* Detect an underflow case to avoid a possible integer overflow
+         with UBF in the computation of exp_a. */
+      if (MPFR_UNLIKELY (exp_b < __gmpfr_emin - 1))
+        {
+          if (rnd_mode == MPFR_RNDN)
+            rnd_mode = MPFR_RNDZ;
+          return mpfr_underflow (a, rnd_mode, MPFR_SIGN(a));
+        }
       exp_a = exp_b - cancel;
+      /* The following assertion corresponds to a limitation of the MPFR
+         implementation. It may fail with a 32-bit ABI and huge precisions,
+         but this is practically impossible with a 64-bit ABI. This kind
+         of issue is not specific to this function. */
+      MPFR_ASSERTN (exp_b != MPFR_EXP_MAX || exp_a > __gmpfr_emax);
       if (MPFR_UNLIKELY (exp_a < __gmpfr_emin))
         {
-          MPFR_TMP_FREE (marker);
+        underflow:
           if (rnd_mode == MPFR_RNDN &&
               (exp_a < __gmpfr_emin - 1 ||
                (inexact >= 0 && mpfr_powerof2_raw (a))))
             rnd_mode = MPFR_RNDZ;
           return mpfr_underflow (a, rnd_mode, MPFR_SIGN(a));
         }
-      if (MPFR_UNLIKELY (exp_a > __gmpfr_emax))
+      /* We cannot have an overflow here, except for UBFs. Indeed:
+         exp_a = exp_b - cancel + add_exp <= emax - 1 + 1 <= emax.
+         For UBFs, we can have exp_b > emax. */
+      if (exp_a > __gmpfr_emax)
         {
-          MPFR_TMP_FREE (marker);
+          MPFR_ASSERTD (exp_b > __gmpfr_emax);  /* since exp_b >= exp_a */
           return mpfr_overflow (a, rnd_mode, MPFR_SIGN (a));
         }
-      MPFR_SET_EXP (a, exp_a);
     }
   else /* cancel = 0: MPFR_EXP(a) <- MPFR_EXP(b) + add_exp */
     {
@@ -669,14 +730,19 @@ mpfr_sub1 (mpfr_ptr a, mpfr_srcptr b, mpfr_srcptr c, mpfr_rnd_t rnd_mode)
          below a power of two, c is very small, prec(a) < prec(b),
          and rnd=away or nearest */
       MPFR_ASSERTD (add_exp == 0 || add_exp == 1);
-      if (MPFR_UNLIKELY (add_exp && exp_b >= __gmpfr_emax))
-        {
-          MPFR_TMP_FREE (marker);
-          return mpfr_overflow (a, rnd_mode, MPFR_SIGN (a));
-        }
-      MPFR_SET_EXP (a, exp_b + add_exp);
+      /* Overflow iff exp_b + add_exp > __gmpfr_emax in Z, but we do
+         a subtraction below to avoid a potential integer overflow in
+         the case exp_b == MPFR_EXP_MAX. */
+      if (MPFR_UNLIKELY (exp_b > __gmpfr_emax - add_exp))
+        return mpfr_overflow (a, rnd_mode, MPFR_SIGN (a));
+      exp_a = exp_b + add_exp;
+      /* Warning: an underflow can happen for UBFs, for example when
+         mpfr_add is called from mpfr_fmma or mpfr_fmms. */
+      if (MPFR_UNLIKELY (exp_a < __gmpfr_emin))
+        goto underflow;
+      MPFR_ASSERTD (exp_a >= __gmpfr_emin);
     }
-  MPFR_TMP_FREE(marker);
+  MPFR_SET_EXP (a, exp_a);
   /* check that result is msb-normalized */
   MPFR_ASSERTD(ap[an-1] > ~ap[an-1]);
   MPFR_RET (inexact * MPFR_INT_SIGN (a));

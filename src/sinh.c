@@ -1,6 +1,6 @@
 /* mpfr_sinh -- hyperbolic sine
 
-Copyright 2001-2017 Free Software Foundation, Inc.
+Copyright 2001-2022 Free Software Foundation, Inc.
 Contributed by the AriC and Caramba projects, INRIA.
 
 This file is part of the GNU MPFR Library.
@@ -17,7 +17,7 @@ License for more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with the GNU MPFR Library; see the file COPYING.LESSER.  If not, see
-http://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
+https://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA. */
 
 #define MPFR_NEED_LONGLONG_H
@@ -112,7 +112,7 @@ mpfr_sinh (mpfr_ptr y, mpfr_srcptr xt, mpfr_rnd_t rnd_mode)
                 break;
               }
 
-            /* ti <- sinh(x/2): , error(ti) <= 1 ulp(ti)
+            /* ti <- sinh(x/2): error(ti) <= 1 ulp(ti)
                cannot overflow because 0 < sinh(x) < cosh(x) when x > 0 */
             mpfr_sinh (ti, ti, MPFR_RNDD);
 

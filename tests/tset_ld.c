@@ -1,6 +1,6 @@
 /* Test file for mpfr_set_ld and mpfr_get_ld.
 
-Copyright 2002-2017 Free Software Foundation, Inc.
+Copyright 2002-2022 Free Software Foundation, Inc.
 Contributed by the AriC and Caramba projects, INRIA.
 
 This file is part of the GNU MPFR Library.
@@ -17,13 +17,10 @@ License for more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with the GNU MPFR Library; see the file COPYING.LESSER.  If not, see
-http://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
+https://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA. */
 
 #include <float.h>
-#ifdef WITH_FPU_CONTROL
-#include <fpu_control.h>
-#endif
 
 #include "mpfr-test.h"
 
@@ -31,14 +28,15 @@ static void
 check_gcc33_bug (void)
 {
   volatile long double x;
+
   x = (long double) 9007199254740992.0 + 1.0;
   if (x != 0.0)
     return;  /* OK */
   printf
     ("Detected optimization bug of gcc 3.3 on Alpha concerning long double\n"
      "comparisons; set_ld tests might fail (set_ld won't work correctly).\n"
-     "See https://gcc.gnu.org/ml/gcc-bugs/2003-10/msg00853.html for more\n"
-     "information.\n");
+     "See https://gcc.gnu.org/legacy-ml/gcc-bugs/2003-10/msg00853.html for\n"
+     "more information.\n");
 }
 
 static int
@@ -83,7 +81,7 @@ print_binary (long double d, int flag)
       d = -d;
     }
   /* now d >= 0 */
-  /* Use 2 differents tests for Inf, to avoid potential bugs
+  /* Use 2 different tests for Inf, to avoid potential bugs
      in implementations. */
   if (Isnan_ld (d - d) || (d > 1 && d * 0.5 == d))
     {
@@ -171,11 +169,16 @@ print_binary (long double d, int flag)
 static void
 check_set_get (long double d)
 {
+  mpfr_exp_t emin, emax;
   mpfr_t x;
   mpfr_prec_t prec;
   int r;
   long double e;
   int inex;
+  int red;
+
+  emin = mpfr_get_emin ();
+  emax = mpfr_get_emax ();
 
   /* Select a precision to ensure that the conversion of d to x be exact. */
   prec = print_binary (d, 0);
@@ -188,9 +191,6 @@ check_set_get (long double d)
       inex = mpfr_set_ld (x, d, (mpfr_rnd_t) r);
       if (inex != 0)
         {
-          mpfr_exp_t emin, emax;
-          emin = mpfr_get_emin ();
-          emax = mpfr_get_emax ();
           printf ("Error: mpfr_set_ld should be exact (rnd = %s)\n",
                   mpfr_print_rnd_mode ((mpfr_rnd_t) r));
           /* We use 36 digits here, as the maximum LDBL_MANT_DIG value
@@ -210,37 +210,54 @@ check_set_get (long double d)
           printf ("  x = ");
           mpfr_dump (x);
           printf ("  MPFR_LDBL_MANT_DIG=%u\n", MPFR_LDBL_MANT_DIG);
-          printf ("  prec=%lu\n", prec);
+          printf ("  prec=%ld\n", (long) prec);
           print_binary (d, 2);
           exit (1);
         }
-      e = mpfr_get_ld (x, (mpfr_rnd_t) r);
-      if (inex == 0 && ((Isnan_ld(d) && ! Isnan_ld(e)) ||
-                        (Isnan_ld(e) && ! Isnan_ld(d)) ||
-                        (e != d && !(Isnan_ld(e) && Isnan_ld(d)))))
+      for (red = 0; red < 2; red++)
         {
-          printf ("Error: mpfr_get_ld o mpfr_set_ld <> Id\n");
-          printf ("  rnd = %s\n", mpfr_print_rnd_mode ((mpfr_rnd_t) r));
-          printf ("  d ~= %.36Le (output may be wrong!)\n", d);
-          printf ("  e ~= %.36Le (output may be wrong!)\n", e);
-          ld_trace ("  d", d);
-          printf ("  x = "); mpfr_out_str (NULL, 16, 0, x, MPFR_RNDN);
-          printf ("\n");
-          ld_trace ("  e", e);
-          printf ("  d = ");
-          print_binary (d, 1);
-          printf ("  x = ");
-          mpfr_dump (x);
-          printf ("  e = ");
-          print_binary (e, 1);
-          printf ("  MPFR_LDBL_MANT_DIG=%u\n", MPFR_LDBL_MANT_DIG);
+          if (red)
+            {
+              mpfr_exp_t ex;
+
+              if (MPFR_IS_SINGULAR (x))
+                break;
+              ex = MPFR_GET_EXP (x);
+              set_emin (ex);
+              set_emax (ex);
+            }
+          e = mpfr_get_ld (x, (mpfr_rnd_t) r);
+          set_emin (emin);
+          set_emax (emax);
+          if (inex == 0 && ((Isnan_ld(d) && ! Isnan_ld(e)) ||
+                            (Isnan_ld(e) && ! Isnan_ld(d)) ||
+                            (e != d && !(Isnan_ld(e) && Isnan_ld(d)))))
+            {
+              printf ("Error: mpfr_get_ld o mpfr_set_ld <> Id%s\n",
+                      red ? ", reduced exponent range" : "");
+              printf ("  rnd = %s\n", mpfr_print_rnd_mode ((mpfr_rnd_t) r));
+              printf ("  d ~= %.36Le (output may be wrong!)\n", d);
+              printf ("  e ~= %.36Le (output may be wrong!)\n", e);
+              ld_trace ("  d", d);
+              printf ("  x = ");
+              mpfr_out_str (stdout, 16, 0, x, MPFR_RNDN);
+              printf ("\n");
+              ld_trace ("  e", e);
+              printf ("  d = ");
+              print_binary (d, 1);
+              printf ("  x = ");
+              mpfr_dump (x);
+              printf ("  e = ");
+              print_binary (e, 1);
+              printf ("  MPFR_LDBL_MANT_DIG=%u\n", MPFR_LDBL_MANT_DIG);
 #ifdef MPFR_NANISNAN
-          if (Isnan_ld(d) || Isnan_ld(e))
-            printf ("The reason is that NAN == NAN. Please look at the "
-                    "configure output\nand Section \"In case of problem\" "
-                    "of the INSTALL file.\n");
+              if (Isnan_ld(d) || Isnan_ld(e))
+                printf ("The reason is that NAN == NAN. Please look at the "
+                        "configure output\nand Section \"In case of problem\""
+                        " of the INSTALL file.\n");
 #endif
-          exit (1);
+              exit (1);
+            }
         }
     }
 
@@ -270,16 +287,16 @@ test_small (void)
                  mpfr_erangeflag_p ()))
     {
       printf ("Error with x = ");
-      mpfr_out_str (NULL, 10, 21, x, MPFR_RNDN);
+      mpfr_out_str (stdout, 10, 21, x, MPFR_RNDN);
       printf (" = ");
-      mpfr_out_str (NULL, 16, 0, x, MPFR_RNDN);
+      mpfr_out_str (stdout, 16, 0, x, MPFR_RNDN);
       printf ("\n        -> d = %.33Le", d);
       printf ("\n        -> y = ");
-      mpfr_out_str (NULL, 10, 21, y, MPFR_RNDN);
+      mpfr_out_str (stdout, 10, 21, y, MPFR_RNDN);
       printf (" = ");
-      mpfr_out_str (NULL, 16, 0, y, MPFR_RNDN);
+      mpfr_out_str (stdout, 16, 0, y, MPFR_RNDN);
       printf ("\n        -> |x-y| = ");
-      mpfr_out_str (NULL, 16, 0, z, MPFR_RNDN);
+      mpfr_out_str (stdout, 16, 0, z, MPFR_RNDN);
       printf ("\n");
       exit (1);
     }
@@ -344,10 +361,10 @@ check_subnormal (void)
       e = mpfr_get_ld (x, MPFR_RNDN);
       if (e != d)
         {
-          printf ("Error for mpfr_get_ld o mpfr_set_ld\n");
-          printf ("d=%Le\n", d);
+          printf ("Error in check_subnormal for mpfr_get_ld o mpfr_set_ld\n");
+          printf ("d=%.30Le\n", d);
           printf ("x="); mpfr_dump (x);
-          printf ("e=%Le\n", e);
+          printf ("e=%.30Le\n", e);
           exit (1);
         }
       d *= 0.5;
@@ -462,15 +479,36 @@ bug_20160907 (void)
       ld = mpfr_get_ld (mp, MPFR_RNDU);
       mpfr_set_ld (mp, ld, MPFR_RNDU);
       /* mp is 2^e rounded up, thus should be >= 2^e */
-      MPFR_ASSERTN(mpfr_cmp_ui_2exp (mp, 1, e) >= 0);
+      if (mpfr_cmp_ui_2exp (mp, 1, e) < 0)
+        {
+          if (tests_run_within_valgrind () && MPFR_IS_ZERO (mp))
+            {
+              /* Since this is not a bug in MPFR and it is just caused by
+                 Valgrind, let's output a message and skip the remaining
+                 part of the test without an error. Note that the message
+                 will be not be visible via "make check".
+                 Note that the other tests do not fail probably because
+                 long double has the same behavior as double (which is
+                 allowed by the C standard), but here this is a test that
+                 is specific to x86 extended precision. */
+              printf
+                ("Error in bug_20160907 due to a bug in Valgrind.\n"
+                 "https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=890215\n"
+                 "https://bugs.kde.org/show_bug.cgi?id=421262\n");
+              break;
+            }
+          printf ("Error, expected value >= 2^(%ld)\n", e);
+          printf ("got "); mpfr_dump (mp);
+          exit (1);
+        }
 
       mpfr_set_ui_2exp (mp, 1, e, MPFR_RNDN);
       ld = mpfr_get_ld (mp, MPFR_RNDD);
       mpfr_set_ld (mp, ld, MPFR_RNDD);
       /* mp is 2^e rounded down, thus should be <= 2^e */
-      if (mpfr_cmp_ui_2exp (mp, 3, e) > 0)
+      if (mpfr_cmp_ui_2exp (mp, 1, e) > 0)
         {
-          printf ("Error, expected value <= 2^%ld\n", e);
+          printf ("Error, expected value <= 2^(%ld)\n", e);
           printf ("got "); mpfr_dump (mp);
           exit (1);
         }
@@ -487,16 +525,6 @@ main (int argc, char *argv[])
   mpfr_t x;
   int i;
   mpfr_exp_t emax;
-#ifdef WITH_FPU_CONTROL
-  fpu_control_t cw;
-
-  if (argc > 1)
-    {
-      cw = strtol(argv[1], NULL, 0);
-      printf ("FPU control word: 0x%x\n", (unsigned int) cw);
-      _FPU_SETCW (cw);
-    }
-#endif
 
   tests_start_mpfr ();
   mpfr_test_init ();
@@ -625,7 +653,9 @@ main (int argc, char *argv[])
   test_small ();
 
   check_subnormal ();
+#if !defined(MPFR_ERRDIVZERO)
   check_overflow ();
+#endif
 
   test_20140212 ();
   bug_20160907 ();

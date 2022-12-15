@@ -1,6 +1,6 @@
 /* mpfr_li2 -- Dilogarithm.
 
-Copyright 2007-2017 Free Software Foundation, Inc.
+Copyright 2007-2022 Free Software Foundation, Inc.
 Contributed by the AriC and Caramba projects, INRIA.
 
 This file is part of the GNU MPFR Library.
@@ -17,7 +17,7 @@ License for more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with the GNU MPFR Library; see the file COPYING.LESSER.  If not, see
-http://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
+https://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA. */
 
 #define MPFR_NEED_LONGLONG_H
@@ -31,7 +31,7 @@ http://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
    for determinating the relative error.
 */
 static int
-li2_series (mpfr_t sum, mpfr_srcptr z, mpfr_rnd_t rnd_mode)
+li2_series (mpfr_ptr sum, mpfr_srcptr z, mpfr_rnd_t rnd_mode)
 {
   int i;
   mpfr_t s, u, v, w;
@@ -40,8 +40,8 @@ li2_series (mpfr_t sum, mpfr_srcptr z, mpfr_rnd_t rnd_mode)
   MPFR_ZIV_DECL (loop);
 
   /* The series converges for |z| < 2 pi, but in mpfr_li2 the argument is
-     reduced so that 0 < z <= log(2). Here is additionnal check that z is
-     (nearly) correct */
+     reduced so that 0 < z <= log(2). Here is an additional check that z
+     is (nearly) correct. */
   MPFR_ASSERTD (MPFR_IS_STRICTPOS (z));
   MPFR_ASSERTD (mpfr_cmp_ui_2exp (z, 89, -7) <= 0); /* z <= 0.6953125 */
 
@@ -118,7 +118,7 @@ li2_series (mpfr_t sum, mpfr_srcptr z, mpfr_rnd_t rnd_mode)
    thus |Li2(x) - g(x)| <= 2/x.
    Assumes x >= 38, which ensures log(x)^2/2 >= 2*Pi^2/3, and g(x) <= -3.3.
    Return 0 if asymptotic expansion failed (unable to round), otherwise
-   returns correct ternary value.
+   returns 1 for RNDF, and correct ternary value otherwise.
 */
 static int
 mpfr_li2_asympt_pos (mpfr_ptr y, mpfr_srcptr x, mpfr_rnd_t rnd_mode)
@@ -150,7 +150,11 @@ mpfr_li2_asympt_pos (mpfr_ptr y, mpfr_srcptr x, mpfr_rnd_t rnd_mode)
                                    bounded by 16 ulp(g). */
   if ((MPFR_EXP (x) >= (mpfr_exp_t) w - MPFR_EXP (g)) &&
       MPFR_CAN_ROUND (g, w - 4, MPFR_PREC (y), rnd_mode))
-    inex = mpfr_set (y, g, rnd_mode);
+    {
+      inex = mpfr_set (y, g, rnd_mode);
+      if (rnd_mode == MPFR_RNDF)
+        inex = 1;
+    }
 
   mpfr_clear (g);
   mpfr_clear (h);
@@ -164,7 +168,7 @@ mpfr_li2_asympt_pos (mpfr_ptr y, mpfr_srcptr x, mpfr_rnd_t rnd_mode)
    |Li2(x) - g(x)| <= 1/|x|.
    Assumes x <= -7, which ensures |log(-x)^2/2| >= Pi^2/6, and g(x) <= -3.5.
    Return 0 if asymptotic expansion failed (unable to round), otherwise
-   returns correct ternary value.
+   returns 1 for RNDF, and correct ternary value otherwise.
 */
 static int
 mpfr_li2_asympt_neg (mpfr_ptr y, mpfr_srcptr x, mpfr_rnd_t rnd_mode)
@@ -193,7 +197,11 @@ mpfr_li2_asympt_neg (mpfr_ptr y, mpfr_srcptr x, mpfr_rnd_t rnd_mode)
                                    total error is bounded by 16 ulp(g). */
   if ((MPFR_EXP (x) >= (mpfr_exp_t) (w - 2) - MPFR_EXP (g)) &&
       MPFR_CAN_ROUND (g, w - 4, MPFR_PREC (y), rnd_mode))
-    inex = mpfr_neg (y, g, rnd_mode);
+    {
+      inex = mpfr_neg (y, g, rnd_mode);
+      if (rnd_mode == MPFR_RNDF)
+        inex = 1;
+    }
 
   mpfr_clear (g);
   mpfr_clear (h);

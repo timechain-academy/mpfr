@@ -1,6 +1,6 @@
 /* mpfr_round_near_x -- Round a floating point number nears another one.
 
-Copyright 2005-2017 Free Software Foundation, Inc.
+Copyright 2005-2022 Free Software Foundation, Inc.
 Contributed by the AriC and Caramba projects, INRIA.
 
 This file is part of the GNU MPFR Library.
@@ -17,7 +17,7 @@ License for more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with the GNU MPFR Library; see the file COPYING.LESSER.  If not, see
-http://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
+https://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA. */
 
 #include "mpfr-impl.h"
@@ -158,6 +158,9 @@ mpfr_round_near_x (mpfr_ptr y, mpfr_srcptr v, mpfr_uexp_t err, int dir,
 {
   int inexact, sign;
   mpfr_flags_t old_flags = __gmpfr_flags;
+
+  if (rnd == MPFR_RNDF)
+    rnd = MPFR_RNDZ;
 
   MPFR_ASSERTD (!MPFR_IS_SINGULAR (v));
   MPFR_ASSERTD (dir == 0 || dir == 1);

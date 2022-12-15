@@ -1,6 +1,6 @@
 /* mpfr-mini-gmp.h -- Interface header for mini-gmp.
 
-Copyright 2014-2017 Free Software Foundation, Inc.
+Copyright 2014-2022 Free Software Foundation, Inc.
 Contributed by the AriC and Caramba projects, INRIA.
 
 This file is part of the GNU MPFR Library.
@@ -17,20 +17,11 @@ License for more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with the GNU MPFR Library; see the file COPYING.LESSER.  If not, see
-http://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
+https://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA. */
 
-#include <stdlib.h> /* for size_t */
-#include "gmp.h"
-
-#ifndef gmp_version
-extern char gmp_version[];
-#endif
-
-#ifndef GMP_NUMB_BITS
-/* see https://gmplib.org/list-archives/gmp-bugs/2015-October/003755.html */
-#include <limits.h>
-#define GMP_NUMB_BITS (CHAR_BIT * sizeof(mp_limb_t))
+#ifndef mp_limb_signed_t
+typedef long mp_limb_signed_t;
 #endif
 
 #ifndef __gmp_allocate_func
@@ -59,19 +50,14 @@ void gmp_randseed_ui (gmp_randstate_t, unsigned long int);
 void gmp_randclear (gmp_randstate_t);
 #endif
 
+#ifndef gmp_randinit_set
+#define WANT_gmp_randinit_set
+void gmp_randinit_set (gmp_randstate_t, gmp_randstate_t);
+#endif
+
 #ifndef mpn_scan1
 #define WANT_mpn_scan1
 mp_bitcnt_t mpn_scan1 (const mp_limb_t *, mp_bitcnt_t);
-#endif
-
-#ifndef mpn_neg
-#define WANT_mpn_neg
-mp_limb_t mpn_neg (mp_limb_t *rp, const mp_limb_t *sp, mp_size_t n);
-#endif
-
-#ifndef mpn_com
-#define WANT_mpn_com
-void mpn_com (mp_limb_t *rp, const mp_limb_t *sp, mp_size_t n);
 #endif
 
 #ifndef mpz_perfect_square_p
@@ -137,11 +123,10 @@ void mpn_tdiv_qr (mp_limb_t *, mp_limb_t *, mp_size_t,
                   const mp_limb_t *, mp_size_t, const mp_limb_t *, mp_size_t);
 #endif
 
-#ifndef mpz_dump
-#define WANT_mpz_dump
-void mpz_dump (mpz_t);
-#endif
-
 #ifndef mpz_rrandomb
 #define mpz_rrandomb mpz_urandomb
+#endif
+
+#ifndef mpz_dump
+void mpz_dump (mpz_t);
 #endif

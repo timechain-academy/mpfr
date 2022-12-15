@@ -1,6 +1,6 @@
 /* Declarations of random_deviate routines for mpfr_erandom and mpfr_nrandom.
 
-Copyright 2013-2017 Free Software Foundation, Inc.
+Copyright 2013-2022 Free Software Foundation, Inc.
 Contributed by Charles Karney <charles@karney.com>, SRI International.
 
 This file is part of the GNU MPFR Library.
@@ -17,7 +17,7 @@ License for more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with the GNU MPFR Library; see the file COPYING.LESSER.  If not, see
-http://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
+https://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA. */
 
 #if !defined(MPFR_RANDOM_DEVIATE_H)
@@ -76,7 +76,7 @@ __MPFR_DECLSPEC int
 /* set mpfr_t z = (neg ? -1 : 1) * (n + x) */
 __MPFR_DECLSPEC int
   mpfr_random_deviate_value (int, unsigned long,
-                             mpfr_random_deviate_ptr, mpfr_t,
+                             mpfr_random_deviate_ptr, mpfr_ptr,
                              gmp_randstate_t, mpfr_rnd_t);
 
 #if defined(__cplusplus)

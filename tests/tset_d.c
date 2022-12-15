@@ -1,6 +1,6 @@
 /* Test file for mpfr_set_d and mpfr_get_d.
 
-Copyright 1999-2017 Free Software Foundation, Inc.
+Copyright 1999-2022 Free Software Foundation, Inc.
 Contributed by the AriC and Caramba projects, INRIA.
 
 This file is part of the GNU MPFR Library.
@@ -17,7 +17,7 @@ License for more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with the GNU MPFR Library; see the file COPYING.LESSER.  If not, see
-http://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
+https://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA. */
 
 #include <float.h>
@@ -133,8 +133,7 @@ main (int argc, char *argv[])
             printf ("got ");
             mpfr_out_str (stdout, 10, 10, x, MPFR_RNDN);
             printf ("\n");
-            mpfr_print_binary (x);
-            puts ("");
+            mpfr_dump (x);
             exit (1);
           }
       }
@@ -188,8 +187,7 @@ main (int argc, char *argv[])
   mpfr_set_d (x, d, (mpfr_rnd_t) 0);
   if (d != mpfr_get_d1 (x))
     {
-      mpfr_print_binary (x);
-      puts ("");
+      mpfr_dump (x);
       printf ("Error: get_d o set_d <> identity for d = %1.20e %1.20e\n",
               d, mpfr_get_d1 (x));
       exit (1);
@@ -202,7 +200,7 @@ main (int argc, char *argv[])
         {
           d = DBL_RAND ();
         }
-#ifdef HAVE_DENORMS
+#ifdef HAVE_SUBNORM_DBL
       while (0);
 #else
       while (ABS(d) < DBL_MIN);
@@ -212,8 +210,7 @@ main (int argc, char *argv[])
       if (d != dd && !(Isnan(d) && Isnan(dd)))
         {
           printf ("Mismatch on : %1.18g != %1.18g\n", d, mpfr_get_d1 (x));
-          mpfr_print_binary (x);
-          puts ("");
+          mpfr_dump (x);
           exit (1);
         }
     }

@@ -1,6 +1,6 @@
 /* Test file for mpfr_asinh.
 
-Copyright 2001-2004, 2006-2017 Free Software Foundation, Inc.
+Copyright 2001-2004, 2006-2022 Free Software Foundation, Inc.
 Contributed by the AriC and Caramba projects, INRIA.
 
 This file is part of the GNU MPFR Library.
@@ -17,7 +17,7 @@ License for more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with the GNU MPFR Library; see the file COPYING.LESSER.  If not, see
-http://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
+https://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA. */
 
 #include "mpfr-test.h"
@@ -53,14 +53,14 @@ special (void)
   /* asinh(+0) = +0, asinh(-0) = -0 */
   mpfr_set_ui (x, 0, MPFR_RNDN);
   mpfr_asinh (y, x, MPFR_RNDN);
-  if (mpfr_cmp_ui (y, 0) || mpfr_sgn (y) < 0)
+  if (MPFR_NOTZERO (y) || MPFR_IS_NEG (y))
     {
       printf ("Error: mpfr_asinh(+0) <> +0\n");
       exit (1);
     }
   mpfr_neg (x, x, MPFR_RNDN);
   mpfr_asinh (y, x, MPFR_RNDN);
-  if (mpfr_cmp_ui (y, 0) || mpfr_sgn (y) > 0)
+  if (MPFR_NOTZERO (y) || MPFR_IS_POS (y))
     {
       printf ("Error: mpfr_asinh(-0) <> -0\n");
       exit (1);

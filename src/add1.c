@@ -1,6 +1,6 @@
 /* mpfr_add1 -- internal function to perform a "real" addition
 
-Copyright 1999-2017 Free Software Foundation, Inc.
+Copyright 1999-2022 Free Software Foundation, Inc.
 Contributed by the AriC and Caramba projects, INRIA.
 
 This file is part of the GNU MPFR Library.
@@ -17,7 +17,7 @@ License for more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with the GNU MPFR Library; see the file COPYING.LESSER.  If not, see
-http://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
+https://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA. */
 
 #include "mpfr-impl.h"
@@ -41,12 +41,14 @@ mpfr_add1 (mpfr_ptr a, mpfr_srcptr b, mpfr_srcptr c, mpfr_rnd_t rnd_mode)
 
   if (MPFR_UNLIKELY (MPFR_IS_UBF (b)))
     {
-      exp = mpfr_ubf_zexp2exp (MPFR_ZEXP (b));
+      exp = MPFR_UBF_GET_EXP (b);
       if (exp > __gmpfr_emax)
         return mpfr_overflow (a, rnd_mode, MPFR_SIGN (b));;
     }
   else
     exp = MPFR_GET_EXP (b);
+
+  MPFR_ASSERTD (exp <= __gmpfr_emax);
 
   MPFR_TMP_MARK(marker);
 
@@ -79,8 +81,8 @@ mpfr_add1 (mpfr_ptr a, mpfr_srcptr b, mpfr_srcptr c, mpfr_rnd_t rnd_mode)
     }
 
   MPFR_SET_SAME_SIGN(a, b);
-  MPFR_UPDATE2_RND_MODE(rnd_mode, MPFR_SIGN(b));
-  /* now rnd_mode is either MPFR_RNDN, MPFR_RNDZ or MPFR_RNDA */
+  MPFR_UPDATE2_RND_MODE (rnd_mode, MPFR_SIGN (b));
+  /* now rnd_mode is either MPFR_RNDN, MPFR_RNDZ, MPFR_RNDA or MPFR_RNDF. */
   if (MPFR_UNLIKELY (MPFR_IS_UBF (c)))
     {
       MPFR_STAT_STATIC_ASSERT (MPFR_EXP_MAX > MPFR_PREC_MAX);
@@ -187,7 +189,7 @@ mpfr_add1 (mpfr_ptr a, mpfr_srcptr b, mpfr_srcptr c, mpfr_rnd_t rnd_mode)
 
               mask = MPFR_LIMB_MASK (sh);
               bb = ap[0] & mask;
-              ap[0] &= (~mask) << 1;
+              ap[0] &= MPFR_LIMB_LSHIFT (~mask, 1);
               if (bb == 0)
                 fb = 0;
               else if (bb == mask)
@@ -200,7 +202,7 @@ mpfr_add1 (mpfr_ptr a, mpfr_srcptr b, mpfr_srcptr c, mpfr_rnd_t rnd_mode)
         } /* cc */
     } /* aq2 > diff_exp */
 
-  /* non-significant bits of a */
+  /* zero the non-significant bits of a */
   if (MPFR_LIKELY(rb < 0 && sh))
     {
       mp_limb_t mask, bb;
@@ -222,7 +224,11 @@ mpfr_add1 (mpfr_ptr a, mpfr_srcptr b, mpfr_srcptr c, mpfr_rnd_t rnd_mode)
         }
     }
 
-  /* determine rounding and sticky bits (and possible carry) */
+  /* Determine rounding and sticky bits (and possible carry).
+     In faithful rounding, we may stop two bits after ulp(a):
+     the approximation is regarded as the number formed by a,
+     the rounding bit rb and an additional bit fb; and the
+     corresponding error is < 1/2 ulp of the unrounded result. */
 
   difw = (mpfr_exp_t) an - (mpfr_exp_t) (diff_exp / GMP_NUMB_BITS);
   /* difw is the number of limbs from b (regarded as having an infinite
@@ -249,7 +255,12 @@ mpfr_add1 (mpfr_ptr a, mpfr_srcptr b, mpfr_srcptr c, mpfr_rnd_t rnd_mode)
           MPFR_ASSERTD(fb != 0);
           if (fb > 0)
             {
-              if (bb != MPFR_LIMB_MAX)
+              /* Note: Here, we can round to nearest, but the loop may still
+                 be necessary to determine whether there is a carry from c,
+                 which will have an effect on the ternary value. However, in
+                 faithful rounding, we do not have to determine the ternary
+                 value, so that we can end the loop here. */
+              if (bb != MPFR_LIMB_MAX || rnd_mode == MPFR_RNDF)
                 goto rounding;
             }
           else /* fb not initialized yet */
@@ -333,6 +344,12 @@ mpfr_add1 (mpfr_ptr a, mpfr_srcptr b, mpfr_srcptr c, mpfr_rnd_t rnd_mode)
                 goto rounding;
             } /* fb < 0 */
 
+          /* At least two bits after ulp(a) have been read, which is
+             sufficient for faithful rounding, as we do not need to
+             determine on which side of a breakpoint the result is. */
+          if (rnd_mode == MPFR_RNDF)
+            goto rounding;
+
           while (bk > 0)
             {
               mp_limb_t bb, cc;
@@ -362,7 +379,7 @@ mpfr_add1 (mpfr_ptr a, mpfr_srcptr b, mpfr_srcptr c, mpfr_rnd_t rnd_mode)
                   if (fb)
                     goto rounding;
                   rb ^= 1;
-                  if (rb == 0 && mpn_add_1(ap, ap, an, MPFR_LIMB_ONE << sh))
+                  if (rb == 0 && mpn_add_1 (ap, ap, an, MPFR_LIMB_ONE << sh))
                     {
                       if (MPFR_UNLIKELY(exp == __gmpfr_emax))
                         {
@@ -387,7 +404,7 @@ mpfr_add1 (mpfr_ptr a, mpfr_srcptr b, mpfr_srcptr c, mpfr_rnd_t rnd_mode)
 
           if (fb || ck < 0)
             goto rounding;
-          if (difs && cprev << (GMP_NUMB_BITS - difs))
+          if (difs && MPFR_LIMB_LSHIFT(cprev, GMP_NUMB_BITS - difs) != 0)
             {
               fb = 1;
               goto rounding;
@@ -417,7 +434,7 @@ mpfr_add1 (mpfr_ptr a, mpfr_srcptr b, mpfr_srcptr c, mpfr_rnd_t rnd_mode)
                 }
               fb = bb != 0;
             } /* fb < 0 */
-          if (fb)
+          if (fb || rnd_mode == MPFR_RNDF)
             goto rounding;
           while (bk)
             {
@@ -469,6 +486,11 @@ mpfr_add1 (mpfr_ptr a, mpfr_srcptr b, mpfr_srcptr c, mpfr_rnd_t rnd_mode)
                   rb = cc >> (GMP_NUMB_BITS - 1);
                   cc &= ~MPFR_LIMB_HIGHBIT;
                 }
+              if (cc == 0 && rnd_mode == MPFR_RNDF)
+                {
+                  fb = 0;
+                  goto rounding;
+                }
               while (cc == 0)
                 {
                   if (ck == 0)
@@ -484,8 +506,8 @@ mpfr_add1 (mpfr_ptr a, mpfr_srcptr b, mpfr_srcptr c, mpfr_rnd_t rnd_mode)
     } /* fb != 1 */
 
  rounding:
-  /* rnd_mode should be one of MPFR_RNDN, MPFR_RNDZ or MPFR_RNDA */
-  if (MPFR_LIKELY(rnd_mode == MPFR_RNDN))
+  /* rnd_mode should be one of MPFR_RNDN, MPFR_RNDF, MPFR_RNDZ or MPFR_RNDA */
+  if (MPFR_LIKELY(rnd_mode == MPFR_RNDN || rnd_mode == MPFR_RNDF))
     {
       if (fb == 0)
         {
@@ -541,6 +563,15 @@ mpfr_add1 (mpfr_ptr a, mpfr_srcptr b, mpfr_srcptr c, mpfr_rnd_t rnd_mode)
     }
 
  set_exponent:
+  if (MPFR_UNLIKELY (exp < __gmpfr_emin))  /* possible if b and c are UBF's */
+    {
+      if (rnd_mode == MPFR_RNDN &&
+          (exp < __gmpfr_emin - 1 ||
+           (inex >= 0 && mpfr_powerof2_raw (a))))
+        rnd_mode = MPFR_RNDZ;
+      inex = mpfr_underflow (a, rnd_mode, MPFR_SIGN(a));
+      goto end_of_add;
+    }
   MPFR_SET_EXP (a, exp);
 
  end_of_add:

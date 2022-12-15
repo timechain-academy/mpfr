@@ -1,6 +1,6 @@
 /* Uniform Interface to GMP.
 
-Copyright 2004-2017 Free Software Foundation, Inc.
+Copyright 2004-2022 Free Software Foundation, Inc.
 Contributed by the AriC and Caramba projects, INRIA.
 
 This file is part of the GNU MPFR Library.
@@ -17,7 +17,7 @@ License for more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with the GNU MPFR Library; see the file COPYING.LESSER.  If not, see
-http://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
+https://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA. */
 
 #ifndef __GMPFR_GMP_H__
@@ -61,14 +61,18 @@ extern "C" {
 #endif
 
 #if GMP_NAIL_BITS != 0
-# error "MPFR doesn't support nonzero values of GMP_NAIL_BITS"
+# error "MPFR doesn't support non-zero values of GMP_NAIL_BITS"
 #endif
 
-#if (GMP_NUMB_BITS<32) || (GMP_NUMB_BITS & (GMP_NUMB_BITS - 1))
-# error "GMP_NUMB_BITS must be a power of 2, and >= 32"
+#if (GMP_NUMB_BITS<8) || (GMP_NUMB_BITS & (GMP_NUMB_BITS - 1))
+# error "GMP_NUMB_BITS must be a power of 2, and >= 8"
 #endif
 
-#if GMP_NUMB_BITS == 32
+#if GMP_NUMB_BITS == 8
+# define MPFR_LOG2_GMP_NUMB_BITS 3
+#elif GMP_NUMB_BITS == 16
+# define MPFR_LOG2_GMP_NUMB_BITS 4
+#elif GMP_NUMB_BITS == 32
 # define MPFR_LOG2_GMP_NUMB_BITS 5
 #elif GMP_NUMB_BITS == 64
 # define MPFR_LOG2_GMP_NUMB_BITS 6
@@ -86,28 +90,13 @@ extern "C" {
  ************* Define GMP Internal Interface  *********
  ******************************************************/
 
-#ifndef MPFR_HAVE_GMP_IMPL /* Build with gmp internals */
+#ifdef MPFR_HAVE_GMP_IMPL  /* with gmp build */
 
-/* The following tries to get a good version of alloca.
-   See gmp-impl.h for implementation details and original version */
-/* FIXME: the autoconf manual gives a different piece of code under the
-   documentation of the AC_FUNC_ALLOCA macro. Should we switch to it? */
-#ifndef alloca
-# if defined ( __GNUC__ )
-#  define alloca __builtin_alloca
-# elif defined (__DECC)
-#  define alloca(x) __ALLOCA(x)
-# elif defined (_MSC_VER)
-#  include <malloc.h>
-#  define alloca _alloca
-# elif defined (HAVE_ALLOCA_H)
-#  include <alloca.h>
-# elif defined (_AIX) || defined (_IBMR2)
-#  pragma alloca
-# else
-void *alloca (size_t);
-# endif
-#endif
+#define mpfr_allocate_func   (*__gmp_allocate_func)
+#define mpfr_reallocate_func (*__gmp_reallocate_func)
+#define mpfr_free_func       (*__gmp_free_func)
+
+#else  /* without gmp build (gmp-impl.h replacement) */
 
 /* Define some macros */
 
@@ -124,7 +113,9 @@ void *alloca (size_t);
 #define MP_SIZE_T_MIN      LONG_MIN
 #endif
 
-/* MP_LIMB macros */
+/* MP_LIMB macros.
+   Note: GMP now also has the MPN_FILL macro, and GMP's MPN_ZERO(dst,n) is
+   defined as "if (n) MPN_FILL(dst, n, 0);". */
 #define MPN_ZERO(dst, n) memset((dst), 0, (n)*MPFR_BYTES_PER_MP_LIMB)
 #define MPN_COPY(dst,src,n) \
   do                                                                  \
@@ -171,6 +162,10 @@ void *alloca (size_t);
 #define MPN_SAME_OR_DECR_P(dst, src, size)      \
   MPN_SAME_OR_DECR2_P(dst, size, src, size)
 
+#ifndef MUL_FFT_THRESHOLD
+#define MUL_FFT_THRESHOLD 8448
+#endif
+
 /* If mul_basecase or mpn_sqr_basecase are not exported, used mpn_mul instead */
 #ifndef mpn_mul_basecase
 # define mpn_mul_basecase(dst,s1,n1,s2,n2) mpn_mul((dst),(s1),(n1),(s2),(n2))
@@ -191,9 +186,16 @@ __MPFR_DECLSPEC void mpfr_assert_fail (const char *, int,
 #define SIZ(x) ((x)->_mp_size)
 #define ABSIZ(x) ABS (SIZ (x))
 #define PTR(x) ((x)->_mp_d)
+#define ALLOC(x) ((x)->_mp_alloc)
+/* For mpf numbers only. */
+#ifdef MPFR_NEED_MPF_INTERNALS
+/* Note: the EXP macro name is reserved when <errno.h> is included.
+   For compatibility with gmp-impl.h (cf --with-gmp-build), we cannot
+   change this macro, but let's define it only when we need it, where
+   <errno.h> will not be included. */
 #define EXP(x) ((x)->_mp_exp)
 #define PREC(x) ((x)->_mp_prec)
-#define ALLOC(x) ((x)->_mp_alloc)
+#endif
 
 /* For longlong.h */
 #ifdef HAVE_ATTRIBUTE_MODE
@@ -246,61 +248,9 @@ __MPFR_DECLSPEC extern const struct bases mpfr_bases[257];
 #define MIN(l,o) ((l) < (o) ? (l) : (o))
 #define MAX(h,i) ((h) > (i) ? (h) : (i))
 
-/* Size of an array, safe version but not a constant expression:
-   Since an array can silently be converted to a pointer, we check
-   that this macro is applied on an array, not a pointer. */
-#undef numberof
-#if 0
-/* The following should work with GCC as documented in its manual,
-   but fails: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=38377#c10
-   Thus disabled for now. */
-# define numberof(x)                                                    \
-  ( __extension__ ({                                                    \
-      int is_array = (void *) &(x) == (void *) &(x)[0];                 \
-      MPFR_STAT_STATIC_ASSERT (__builtin_constant_p (is_array) ?        \
-                               is_array : 1);                           \
-      MPFR_ASSERTN (is_array);                                          \
-      numberof_const (x);                                               \
-    }) )
-#else
-# define numberof(x)                                    \
-  (MPFR_ASSERTN ((void *) &(x) == (void *) &(x)[0]),    \
-   numberof_const (x))
-#endif
-
-/* Allocate func are defined in gmp-impl.h.
-   Warning: the code below fetches the GMP memory allocation functions the first
-   time one allocates some mpfr_t, and then always uses those initial functions,
-   even if the user later changes the GMP memory allocation functions with
-   mp_set_memory_functions(). This is fine as long as the user who wants to use
-   different memory allocation functions first calls mp_set_memory_functions()
-   before any call to mpfr_init or mpfr_init2.
-   For more complex usages, change #if 1 into #if 0. Warning! But in this
-   case, the user must make sure that there are no data internal to MPFR
-   allocated with the previous allocator. Freeing all the caches may be
-   necessary, but this is not guaranteed to be sufficient. */
-
-#if 1
-#undef __gmp_allocate_func
-#undef __gmp_reallocate_func
-#undef __gmp_free_func
-#define MPFR_GET_MEMFUNC                                        \
-  ((void) (MPFR_LIKELY (mpfr_allocate_func != 0) ||             \
-           (mp_get_memory_functions(&mpfr_allocate_func,        \
-                                    &mpfr_reallocate_func,      \
-                                    &mpfr_free_func), 1)))
-#define __gmp_allocate_func   (MPFR_GET_MEMFUNC, mpfr_allocate_func)
-#define __gmp_reallocate_func (MPFR_GET_MEMFUNC, mpfr_reallocate_func)
-#define __gmp_free_func       (MPFR_GET_MEMFUNC, mpfr_free_func)
-#else
-extern void * (*__gmp_allocate_func) (size_t);
-extern void * (*__gmp_reallocate_func) (void *, size_t, size_t);
-extern void (*__gmp_free_func) (void *, size_t);
-#endif
-
-__MPFR_DECLSPEC extern MPFR_THREAD_ATTR void * (*mpfr_allocate_func)   (size_t);
-__MPFR_DECLSPEC extern MPFR_THREAD_ATTR void * (*mpfr_reallocate_func) (void *, size_t, size_t);
-__MPFR_DECLSPEC extern MPFR_THREAD_ATTR void   (*mpfr_free_func)       (void *, size_t);
+__MPFR_DECLSPEC void * mpfr_allocate_func (size_t);
+__MPFR_DECLSPEC void * mpfr_reallocate_func (void *, size_t, size_t);
+__MPFR_DECLSPEC void   mpfr_free_func (void *, size_t);
 
 #if defined(WANT_GMP_INTERNALS) && defined(HAVE___GMPN_SBPI1_DIVAPPR_Q)
 #ifndef __gmpn_sbpi1_divappr_q
@@ -315,7 +265,14 @@ __MPFR_DECLSPEC mp_limb_t __gmpn_invert_limb (mp_limb_t);
 #endif
 #endif
 
-/* Temp memory allocate */
+#if defined(WANT_GMP_INTERNALS) && defined(HAVE___GMPN_RSBLSH1_N)
+#ifndef __gmpn_rsblsh1_n
+__MPFR_DECLSPEC mp_limb_t __gmpn_rsblsh1_n (mp_limb_t*, mp_limb_t*, mp_limb_t*, mp_size_t);
+#endif
+#endif
+
+/* Definitions related to temporary memory allocation */
+
 struct tmp_marker
 {
   void *ptr;
@@ -327,22 +284,68 @@ __MPFR_DECLSPEC void *mpfr_tmp_allocate (struct tmp_marker **,
                                          size_t);
 __MPFR_DECLSPEC void mpfr_tmp_free (struct tmp_marker *);
 
-/* Can be overriden at configure time. Useful for checking buffer overflow. */
+/* Default MPFR_ALLOCA_MAX value. It can be overridden at configure time;
+   with some tools, by giving a low value such as 0, this is useful for
+   checking buffer overflow, which may not be possible with alloca.
+   If HAVE_ALLOCA is not defined, then alloca() is not available, so that
+   MPFR_ALLOCA_MAX needs to be 0 (see the definition of TMP_ALLOC below);
+   if the user has explicitly given a non-zero value, this will probably
+   yield an error at link time or at run time. */
 #ifndef MPFR_ALLOCA_MAX
-# define MPFR_ALLOCA_MAX 16384
+# ifdef HAVE_ALLOCA
+#  define MPFR_ALLOCA_MAX 16384
+# else
+#  define MPFR_ALLOCA_MAX 0
+# endif
 #endif
 
 /* Do not define TMP_SALLOC (see the test in mpfr-impl.h)! */
-#define TMP_ALLOC(n) (MPFR_LIKELY ((n) <= MPFR_ALLOCA_MAX) ?       \
+
+#if MPFR_ALLOCA_MAX != 0
+
+/* The following tries to get a good version of alloca.
+   See gmp-impl.h for implementation details and original version */
+/* FIXME: the autoconf manual gives a different piece of code under the
+   documentation of the AC_FUNC_ALLOCA macro. Should we switch to it?
+   But note that the HAVE_ALLOCA test in it seems wrong.
+   https://lists.gnu.org/archive/html/bug-autoconf/2019-01/msg00009.html */
+#ifndef alloca
+# if defined ( __GNUC__ )
+#  define alloca __builtin_alloca
+# elif defined (__DECC)
+#  define alloca(x) __ALLOCA(x)
+# elif defined (_MSC_VER)
+#  include <malloc.h>
+#  define alloca _alloca
+# elif defined (HAVE_ALLOCA_H)
+#  include <alloca.h>
+# elif defined (_AIX) || defined (_IBMR2)
+#  pragma alloca
+# else
+void *alloca (size_t);
+# endif
+#endif
+
+#define TMP_ALLOC(n) (MPFR_ASSERTD ((n) > 0),                      \
+                      MPFR_LIKELY ((n) <= MPFR_ALLOCA_MAX) ?       \
                       alloca (n) : mpfr_tmp_allocate (&tmp_marker, (n)))
+
+#else  /* MPFR_ALLOCA_MAX == 0, alloca() not needed */
+
+#define TMP_ALLOC(n) (mpfr_tmp_allocate (&tmp_marker, (n)))
+
+#endif
+
 #define TMP_DECL(m) struct tmp_marker *tmp_marker
+
 #define TMP_MARK(m) (tmp_marker = 0)
+
 /* Note about TMP_FREE: For small precisions, tmp_marker is null as
    the allocation is done on the stack (see TMP_ALLOC above). */
 #define TMP_FREE(m) \
   (MPFR_LIKELY (tmp_marker == NULL) ? (void) 0 : mpfr_tmp_free (tmp_marker))
 
-#endif /* GMP Internal replacement */
+#endif  /* gmp-impl.h replacement */
 
 
 
@@ -351,6 +354,84 @@ __MPFR_DECLSPEC void mpfr_tmp_free (struct tmp_marker *);
  ****** to other versions of GMP. Add missing     *****
  ****** interfaces.                               *****
  ******************************************************/
+
+#ifndef MPFR_LONG_WITHIN_LIMB
+
+/* the following routines assume that an unsigned long has at least twice the
+   size of an mp_limb_t */
+
+#define umul_ppmm(ph, pl, m0, m1)                                       \
+  do {                                                                  \
+    unsigned long _p = (unsigned long) (m0) * (unsigned long) (m1);     \
+    (ph) = (mp_limb_t) (_p >> GMP_NUMB_BITS);                           \
+    (pl) = (mp_limb_t) (_p & MPFR_LIMB_MAX);                            \
+  } while (0)
+
+#define add_ssaaaa(sh, sl, ah, al, bh, bl)                              \
+  do {                                                                  \
+    unsigned long _a = ((unsigned long) (ah) << GMP_NUMB_BITS) + (al);  \
+    unsigned long _b = ((unsigned long) (bh) << GMP_NUMB_BITS) + (bl);  \
+    unsigned long _s = _a + _b;                                         \
+    (sh) = (mp_limb_t) (_s >> GMP_NUMB_BITS);                           \
+    (sl) = (mp_limb_t) (_s & MPFR_LIMB_MAX);                            \
+  } while (0)
+
+#define sub_ddmmss(sh, sl, ah, al, bh, bl)                              \
+  do {                                                                  \
+    unsigned long _a = ((unsigned long) (ah) << GMP_NUMB_BITS) + (al);  \
+    unsigned long _b = ((unsigned long) (bh) << GMP_NUMB_BITS) + (bl);  \
+    unsigned long _s = _a - _b;                                         \
+    (sh) = (mp_limb_t) (_s >> GMP_NUMB_BITS);                           \
+    (sl) = (mp_limb_t) (_s & MPFR_LIMB_MAX);                            \
+  } while (0)
+
+#define count_leading_zeros(count,x)                                    \
+  do {                                                                  \
+    int _c = 0;                                                         \
+    mp_limb_t _x = (mp_limb_t) (x);                                     \
+    while (GMP_NUMB_BITS > 16 && (_x >> (GMP_NUMB_BITS - 16)) == 0)     \
+      {                                                                 \
+        _c += 16;                                                       \
+        _x = (mp_limb_t) (_x << 16);                                    \
+      }                                                                 \
+    if (GMP_NUMB_BITS > 8 && (_x >> (GMP_NUMB_BITS - 8)) == 0)          \
+      {                                                                 \
+        _c += 8;                                                        \
+        _x = (mp_limb_t) (_x << 8);                                     \
+      }                                                                 \
+    if (GMP_NUMB_BITS > 4 && (_x >> (GMP_NUMB_BITS - 4)) == 0)          \
+      {                                                                 \
+        _c += 4;                                                        \
+        _x = (mp_limb_t) (_x << 4);                                     \
+      }                                                                 \
+    if (GMP_NUMB_BITS > 2 && (_x >> (GMP_NUMB_BITS - 2)) == 0)          \
+      {                                                                 \
+        _c += 2;                                                        \
+        _x = (mp_limb_t) (_x << 2);                                     \
+      }                                                                 \
+    if ((_x & MPFR_LIMB_HIGHBIT) == 0)                                  \
+      _c ++;                                                            \
+    (count) = _c;                                                       \
+  } while (0)
+
+#define invert_limb(invxl,xl)                                           \
+  do {                                                                  \
+    unsigned long _num;                                                 \
+    MPFR_ASSERTD ((xl) != 0);                                           \
+    _num = (unsigned long) (mp_limb_t) ~(xl);                           \
+    _num = (_num << GMP_NUMB_BITS) | MPFR_LIMB_MAX;                     \
+    (invxl) = _num / (xl);                                              \
+  } while (0)
+
+#define udiv_qrnnd(q, r, n1, n0, d)                                     \
+  do {                                                                  \
+    unsigned long _num;                                                 \
+    _num = ((unsigned long) (n1) << GMP_NUMB_BITS) | (n0);              \
+    (q) = _num / (d);                                                   \
+    (r) = _num % (d);                                                   \
+  } while (0)
+
+#endif
 
 /* If mpn_sqr is not defined, use mpn_mul_n instead
    (mpn_sqr was called mpn_sqr_n (internal) in older versions of GMP). */
@@ -416,7 +497,10 @@ __MPFR_DECLSPEC void mpfr_tmp_free (struct tmp_marker *);
   } while (0)
 #endif
 
-/* invert_pi1 macro adapted from GMP 5 */
+/* invert_pi1 macro adapted from GMP 5, this computes in (dinv).inv32
+   the value of floor((beta^3 - 1)/(d1*beta+d0)) - beta,
+   cf "Improved Division by Invariant Integers" by Niels Möller and
+   Torbjörn Granlund */
 typedef struct {mp_limb_t inv32;} mpfr_pi1_t;
 #ifndef invert_pi1
 #define invert_pi1(dinv, d1, d0)                                        \
@@ -446,15 +530,6 @@ typedef struct {mp_limb_t inv32;} mpfr_pi1_t;
       }                                                                 \
     (dinv).inv32 = _v;                                                  \
   } while (0)
-#endif
-
-/* mpn_copyi and mpn_copyd are new exported functions in GMP 5.
-   Defining them to memmove works in overlap cases. */
-#if !__MPFR_GMP(5,0,0)
-# undef  mpn_copyi
-# define mpn_copyi memmove
-# undef  mpn_copyd
-# define mpn_copyd memmove
 #endif
 
 /* The following macro is copied from GMP-6.1.1, file gmp-impl.h,
@@ -586,10 +661,6 @@ typedef struct {mp_limb_t inv32;} mpfr_pi1_t;
 /******************************************************
  ************* GMP Basic Pointer Types ****************
  ******************************************************/
-/* Compatibility with old GMP versions. */
-#if !__MPFR_GMP(5,0,0)
-typedef unsigned long mp_bitcnt_t;
-#endif
 
 typedef mp_limb_t *mpfr_limb_ptr;
 typedef const mp_limb_t *mpfr_limb_srcptr;

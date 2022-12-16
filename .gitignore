@@ -22,3 +22,10 @@ tests/Makefile
 tests/**
 tools/bench/Makefile
 tune/Makefile
+
+mpfr-4.1.1.tar.bz2
+mpfr-4.1.1.tar.gz
+mpfr-4.1.1.tar.xz
+mpfr-4.1.1.zip
+tools/bench/.libs/
+tools/bench/mpfrbench
